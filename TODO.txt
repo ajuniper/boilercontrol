@@ -1,0 +1,24 @@
+TEST
+no web server
+
+FIX
+
+TODO
+. status page to show real time expiry of heat/hw
+. persist override off time in rtc/flash
+. wifi signal strength, RTC in web page
+. rtc resync
+. boiler cycling based on outside temp, hw
+  colour red=heat blue=cycling
+. programming
+  schedules - divide day into 24x4 on/off slots
+  action at startup
+. (outside) temp setback / weather query
+. auto hotspot if no wifi
+. mqtt
+. proper web page
+. ntp, syslog targets from dhcp
+. watchdog timer
+- read temperatures
+- test tempreporter api
+
