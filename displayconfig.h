@@ -56,6 +56,7 @@
 #define flame_w 24
 #define flame_h 24
 #define flame_colour TFT_RED
+#define flame_colour2 TFT_BLUE
 
 #define wifi_x 225
 #define wifi_y 0
