@@ -19,6 +19,7 @@ HeatChannel::HeatChannel(
     int a_pin_o_zv_satisfied,
     int a_pin_i_zv_ready,
     int a_pin_i_zv_satisfied,
+    int a_target_temp,
     bool a_enabled,
     int a_cooldown_duration,
     int a_y
@@ -27,6 +28,7 @@ HeatChannel::HeatChannel(
     m_pin_zv_satisfied(a_pin_o_zv_satisfied),
     m_ready(a_pin_i_zv_ready,a_name,"ready"),
     m_satisfied(a_pin_i_zv_satisfied,a_name,"satisfied"),
+    m_target_temp(a_target_temp),
     m_enabled(a_enabled),
     m_active(false),
     m_cooldown_duration(a_cooldown_duration),
@@ -196,6 +198,7 @@ HeatChannel channels[] = {
                 PIN_O_HW_SATISFIED,
                 PIN_I_HW_CALLS,
                 PIN_I_HW_SATISFIED,
+                65, // target temp
                 true,
                 HEAT_COOLDOWN,
                 channel_y),
@@ -204,6 +207,7 @@ HeatChannel channels[] = {
                 -1,
                 PIN_I_ZV1_READY,
                 -1,
+                55, // target temp
                 true,
                 HEAT_COOLDOWN,
                 channel_y+channel_spacing),
@@ -213,6 +217,7 @@ HeatChannel channels[] = {
                 -1,
                 PIN_I_ZV2_READY,
                 -1,
+                55, // target temp
                 false,
                 HEAT_COOLDOWN,
                 channel_y+channel_spacing+channel_spacing)

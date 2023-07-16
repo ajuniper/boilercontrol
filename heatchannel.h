@@ -10,6 +10,7 @@ private:
     int m_pin_zv_satisfied;
     MainsDetect m_ready;
     MainsDetect m_satisfied;
+    int m_target_temp;
     bool m_enabled;
     bool m_active;
     int m_cooldown_duration;
@@ -31,6 +32,7 @@ public:
 	int a_pin_o_zv_satisfied,
 	int a_pin_i_zv_ready,
 	int a_pin_i_zv_satisfied,
+        int a_target_temp,
 	bool a_enabled,
 	int a_cooldown_duration,
         int a_y
@@ -60,6 +62,7 @@ public:
     // set the output state to the zv
     void setOutput(bool state);
     void setSatisfied(bool state);
+    int targetTemp() const { return m_target_temp; }
 
     // should this channel be running?
     bool wantFire() const;
