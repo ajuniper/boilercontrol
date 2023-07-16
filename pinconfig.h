@@ -11,8 +11,9 @@
 // touch   CS+IRQ - 19 18 
 // RTC     CLK, RST, DATA - 5 17 16
 // 3x SPI - 4 2 15
+// 1wire - 13
 
-// spare - 12 13
+// spare - 12 (output only)
 
 // Boiler Control Connections
 #define PIN_I_HW_SATISFIED 36
@@ -45,6 +46,9 @@
 #define PIN_SPI_MOSI 4
 #define PIN_SPI_MISO 2
 #define PIN_SPI_SCK 15
+
+// Onewire for temperature sensors
+#define PIN_1WIRE 13
 
 // relay outputs are inveted
 #define RELAY_ON LOW
