@@ -2,7 +2,7 @@
 #include <AsyncTCP.h>
 #include "time.h"
 #include <WiFiUdp.h>
-#include <Syslog.h>
+#include <mysyslog.h>
 #include "pinconfig.h"
 #include "display.h"
 #include "tempsensors.h"
@@ -20,8 +20,7 @@ const char* ssid     = MY_WIFI_SSID;
 const char* password = MY_WIFI_PASSWORD;
 
 // syslog stuff
-WiFiUDP udpClient;
-Syslog syslog(udpClient, MY_SYSLOG_SERVER, 514, "boiler", "boiler", LOG_DAEMON);
+const char * syslog_name = "boiler";
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -41,7 +40,7 @@ void setup() {
     // put your setup code here, to run once:
     // Serial port for debugging purposes
     Serial.begin(115200);
-    mytime_setup();
+    mytime_setup(MY_TIMEZONE, PIN_RTC_CLK, PIN_RTC_DATA, PIN_RTC_RST);
 
     xTaskCreate(wifi_task, "wifi", 10000, NULL, 1, NULL);
     xTaskCreate(output_task, "outputs", 10000, NULL, 1, &outputtask_handle);
