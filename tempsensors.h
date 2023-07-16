@@ -21,3 +21,4 @@ class tempsensor_t {
 extern tempsensor_t temperatures[];
 extern const size_t num_temps;
 extern void tempsensors_init();
+extern int tempsensors_get(const char * name);
