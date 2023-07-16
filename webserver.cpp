@@ -2,18 +2,14 @@
 //
 // Web Server Stuff
 #include <Arduino.h>
-#include <ESPAsyncWebServer.h>
 #include <Update.h>
+#include "mywebserver.h"
 #include "webserver.h"
 #include "heatchannel.h"
-#include <Syslog.h>
+#include <WiFi.h>
 
 extern bool o_pump_on;
 extern bool o_boiler_on;
-extern Syslog syslog;
-
-// Create AsyncWebServer object on port 80
-static AsyncWebServer server(80);
 
 //flag to use from web update to reboot the ESP
 bool shouldReboot = false;
@@ -34,6 +30,8 @@ static const char statuspage[] PROGMEM = R"rawliteral(
   <A HREF="/heat?ch=1&q=10800">Heating 3 hours</A><BR/>
   <A HREF="/heat?ch=1&q=-1">Heating On</A><BR/>
   <A HREF="/heat?ch=1&q=0">Heating Off</A><P/>
+  <hr/>
+  %STATUS2%
 </body>
 </html>
 )rawliteral";
@@ -57,8 +55,17 @@ static String statuspage_processor(const String& var){
             case -1:
                 s += "On";
                 break;
-            default:
-                s+= String((t-now)/60);
+            default: {
+                unsigned long d = t-now;
+                if (d < 60) {
+                    s += String(d) + "s";
+                } else {
+                    if (d > 3600) {
+                        s += String(int(d/3600)) + "h ";
+                    }
+                    s += String(int((d%3600)/60)) + "m";
+                }
+            }
         }
         t = channels[i].getCooldown();
         switch (t) {
@@ -94,13 +101,24 @@ static String statuspage_processor(const String& var){
     s += o_pump_on?"pump ":"";
     s += o_boiler_on?"boiler":"";
     return s;
+  } else if(var == "STATUS"){
+    String s = "<p/>";
+    s += "WiFi SNR: " + String(WiFi.RSSI()) + "<br/>";
+    s += "Date: ";
+    struct tm timeinfo;
+    getLocalTime(&timeinfo);
+#define dt_len 21
+    char dt[dt_len];
+    ssize_t l = strftime(dt,dt_len,"%F %T",&timeinfo);
+    s += dt;
+    return s;
   }
   return String();
 }
 
 static void redirect_to_home (AsyncWebServerRequest *request) {
   AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "OK");
-  response->addHeader("Location","/");
+  response->addHeader("Location","/boiler");
   request->send(response);
 }
 
@@ -119,65 +137,11 @@ static void web_set_heat (AsyncWebServerRequest *request) {
     redirect_to_home(request);
 }
 
-static void serve_update_get(AsyncWebServerRequest *request) {
-    request->send(200, "text/html", "<html><body><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form><p/><a href=\"/reboot\">Reboot</a><p/></body></html>");
-}
-static void serve_update_post(AsyncWebServerRequest *request) {
-    shouldReboot = !Update.hasError();
-    syslog.logf(LOG_DAEMON|LOG_INFO,"Update starting");
-    AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
-    response->addHeader("Connection", "close");
-    request->send(response);
-}
-static void serve_update_post_body(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-    if(!index){
-        Serial.printf("Update Start: %s\n", filename.c_str());
-        syslog.logf(LOG_DAEMON|LOG_INFO,"Update Start: %s", filename.c_str());
-        //Update.runAsync(true);
-        //if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000))
-        if(!Update.begin())
-        {
-            Update.printError(Serial);
-            syslog.logf(LOG_DAEMON|LOG_INFO,"Update failed: %s",Update.errorString());
-        }
-    }
-    if(!Update.hasError()){
-        if(Update.write(data, len) != len){
-            Update.printError(Serial);
-            syslog.logf(LOG_DAEMON|LOG_INFO,"Update failed: %s",Update.errorString());
-        }
-    }
-    if(final){
-        if(Update.end(true)){
-            Serial.printf("Update Success: %uB\n", index+len);
-            syslog.logf(LOG_DAEMON|LOG_INFO,"Update success");
-        } else {
-            Update.printError(Serial);
-            syslog.logf(LOG_DAEMON|LOG_INFO,"Update failed: %s",Update.errorString());
-        }
-    }
-}
-
-static void serve_reboot_get(AsyncWebServerRequest *request) {
-    request->send(200, "text/html", "<html><body>Rebooting... bye bye...</body></html>");
-    syslog.logf(LOG_DAEMON|LOG_CRIT,"Restarting");
-    Serial.printf("Restarting");
-    delay(1000);
-    // TODO shut down boiler etc. first
-    ESP.restart();
-}
-
 void webserver_setup() {
     // Route web pages
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    WS_init("/boiler");
+    server.on("/boiler", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send_P(200, "text/html", statuspage, statuspage_processor);
     });
     server.on("/heat", HTTP_GET, web_set_heat);
-
-    // firmware updates
-    // https://github.com/me-no-dev/ESPAsyncWebServer#file-upload-handling
-    server.on("/update", HTTP_GET, serve_update_get);
-    server.on("/update", HTTP_POST, serve_update_post, serve_update_post_body);
-    server.on("/reboot", HTTP_GET, serve_reboot_get);
-    server.begin();
 }
