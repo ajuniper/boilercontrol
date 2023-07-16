@@ -1,18 +1,19 @@
 TEST
 web server
+fake temperatures
+temperature cycling
+pump/boiler icon colour
+rtc integration
 
 FIX
 
 TODO
-- class/enum system for pump/boiler icon colour
-- boiler cycling temp based on demand
-  colour red=heat blue=cycling
-. boiler cycling based on outside temp, hw
-  colour red=heat blue=cycling
-. persist override off time in rtc/flash
+. boiler cycling based on outside temp
+. persist on-until time in rtc/flash
+. web setter for target temps, persist in rtc/flash
 . programming
-  schedules - divide day into 24x4 on/off slots
-  action at startup
+  . schedules - divide day into 24x4 on/off slots
+  . action at startup
 . (outside) temp setback / weather query
 . auto hotspot if no wifi
 . mqtt
