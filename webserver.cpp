@@ -7,6 +7,7 @@
 #include "webserver.h"
 #include "heatchannel.h"
 #include <WiFi.h>
+#include "outputs.h"
 
 extern bool o_pump_on;
 extern bool o_boiler_on;
@@ -97,9 +98,18 @@ static String statuspage_processor(const String& var){
         s+="<br/>";
     }
     
-    s += "System: ";
-    s += o_pump_on?"pump ":"";
-    s += o_boiler_on?"boiler":"";
+    s += "System: pump ";
+    switch (o_boiler_state) {
+        case OUTPUT_OFF: s+="off"; break;
+        case OUTPUT_COOLING: s+="cycling"; break;
+        case OUTPUT_HEATING: s+="heating"; break;
+    }
+    s += " boiler ";
+    switch (o_pump_state) {
+        case OUTPUT_OFF: s+="off"; break;
+        case OUTPUT_COOLING: s+="cycling"; break;
+        case OUTPUT_HEATING: s+="heating"; break;
+    }
     return s;
   } else if(var == "STATUS"){
     String s = "<p/>";

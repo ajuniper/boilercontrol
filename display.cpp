@@ -10,6 +10,7 @@ TFT_eSPI tft = TFT_eSPI();
 #include "buttons.h"
 #include "tempsensors.h"
 #include "heatchannel.h"
+#include "outputs.h"
 
 //////////////////////////////////////////////////////////////////
 //
@@ -44,23 +45,20 @@ static void print_clock() {
 //
 // output icons
 
-extern bool o_pump_on;
-extern bool o_boiler_on;
-
 static void draw_outputs() {
 
-    int pc = TFT_DARKGREY;
-    int bc = TFT_DARKGREY;
+    int pc;
+    int bc;
 
-    if (o_boiler_on) {
-        bc = flame_colour;
-        if (o_pump_on) {
-            pc = pump_colour;
-        }
-    } else {
-        if (o_pump_on) {
-            pc = pump_colour2;
-        }
+    switch (o_boiler_state) {
+        case OUTPUT_OFF: bc = TFT_DARKGREY; break;
+        case OUTPUT_COOLING: bc = flame_colour2; break;
+        case OUTPUT_HEATING: bc = flame_colour; break;
+    }
+    switch (o_pump_state) {
+        case OUTPUT_OFF: pc = TFT_DARKGREY; break;
+        case OUTPUT_COOLING: pc = pump_colour2; break;
+        case OUTPUT_HEATING: pc = pump_colour; break;
     }
 
     tft.drawBitmap(pump_x, pump_y, pump, pump_w, pump_h,pc);
