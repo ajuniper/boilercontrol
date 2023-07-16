@@ -1,15 +1,15 @@
 TEST
-no web server
+web server
 
 FIX
 
 TODO
-. status page to show real time expiry of heat/hw
-. persist override off time in rtc/flash
-. wifi signal strength, RTC in web page
-. rtc resync
+- class/enum system for pump/boiler icon colour
+- boiler cycling temp based on demand
+  colour red=heat blue=cycling
 . boiler cycling based on outside temp, hw
   colour red=heat blue=cycling
+. persist override off time in rtc/flash
 . programming
   schedules - divide day into 24x4 on/off slots
   action at startup
@@ -19,6 +19,3 @@ TODO
 . proper web page
 . ntp, syslog targets from dhcp
 . watchdog timer
-- read temperatures
-- test tempreporter api
-
