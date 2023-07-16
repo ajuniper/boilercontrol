@@ -22,3 +22,16 @@ void tempsensors_init() {
 int tempsensor_t::getTemp() const {
     return int(TR_get(m_name)+0.5);
 } 
+int tempsensors_get(const char * name) {
+    size_t i;
+    int t = -999;
+    for (i=0; i<num_temps; ++i) {
+        if (strcmp(temperatures[i].getName(),name) == 0) {
+            t = temperatures[i].getTemp();
+            if (t == 999) { t = -999; }
+            break;
+        }
+    }
+    return t;
+}
+
