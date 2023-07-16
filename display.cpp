@@ -105,7 +105,12 @@ static void draw_temperatures() {
     tft.setFreeFont(temp_font);
     tft.setTextColor(temp_colour,TFT_BLACK);
     for (i=0; i<num_temps; ++i) {
-        sprintf(m," %2dC",temperatures[i].getTemp());
+        int t = temperatures[i].getTemp();
+        if (t != 999) {
+            sprintf(m," %2dC",t);
+        } else {
+            sprintf(m," ---");
+        }
         tft.drawString(m,x,temp_y,1);
         x+=80;
     }
