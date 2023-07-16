@@ -11,7 +11,7 @@ class tempsensor_t {
         {
         }
         const char * getName() const { return m_name; }
-        int getTemp() const { return m_temp; } 
+        int getTemp() const;
         void setTemp(int t) { m_temp = t; }
     private:
         const char * m_addr;
@@ -20,3 +20,4 @@ class tempsensor_t {
 };
 extern tempsensor_t temperatures[];
 extern const size_t num_temps;
+extern void tempsensors_init();
