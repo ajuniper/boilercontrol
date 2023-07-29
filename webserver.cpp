@@ -80,6 +80,8 @@ static String statuspage_processor(const String& var){
                 s += "cooldown ";
                 s+= String((t-now)/60);
         }
+        s+=" target temp ";
+        s+=String(channels[i].targetTemp());
         s+="<br/>";
     }
 
@@ -147,6 +149,42 @@ static void web_set_heat (AsyncWebServerRequest *request) {
     redirect_to_home(request);
 }
 
+static void web_set_target (AsyncWebServerRequest *request) {
+    AsyncWebServerResponse *response = nullptr;
+    String x,y;
+    // GET /targettemp?ch=N
+    // GET /targettemp?ch=N&temp=X where X is new target temp
+    if (!request->hasParam("ch") && request->hasParam("temp")) {
+        response = request->beginResponse(400, "text/plain", "Sensor id missing");
+    } else {
+        x = request->getParam("ch")->value();
+        int ch = x.toInt();
+        if ((ch >= 0) && (ch <= num_heat_channels)) {
+            if (request->hasParam("temp")) {
+                x = request->getParam("temp")->value();
+                int i = x.toInt();
+                channels[ch].setTargetTemp(i);
+                y = "Setting target temperature ";
+                y+=channels[ch].getName();
+                y+=" to ";
+                y+=x;
+                response = request->beginResponse(200, "text/plain", y);
+            } else {
+                y = "Target temperature ";
+                y+=channels[ch].getName();
+                y+=" is ";
+                y+=x;
+                response = request->beginResponse(200, "text/plain", y);
+            }
+        } else {
+            x = "Invalid channel "+x;
+            response = request->beginResponse(400, "text/plain", x);
+        }
+    }
+    response->addHeader("Connection", "close");
+    request->send(response);
+}
+
 void webserver_setup() {
     // Route web pages
     WS_init("/boiler");
@@ -154,4 +192,5 @@ void webserver_setup() {
         request->send_P(200, "text/html", statuspage, statuspage_processor);
     });
     server.on("/heat", HTTP_GET, web_set_heat);
+    server.on("/targettemp", HTTP_GET, web_set_heat);
 }

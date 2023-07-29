@@ -63,6 +63,7 @@ public:
     void setOutput(bool state);
     void setSatisfied(bool state);
     int targetTemp() const { return m_target_temp; }
+    void setTargetTemp(int target);
 
     // should this channel be running?
     bool wantFire() const;

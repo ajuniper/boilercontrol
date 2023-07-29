@@ -6,6 +6,7 @@
 #include "heatchannel.h"
 #include "displayconfig.h"
 #include "display.h"
+#include <LittleFS.h>
 
 #include <Syslog.h>
 extern Syslog syslog;
@@ -46,6 +47,20 @@ HeatChannel::HeatChannel(
     if (m_pin_zv_satisfied > -1) {
         digitalWrite(m_pin_zv_satisfied, RELAY_OFF);
         pinMode(m_pin_zv_satisfied, OUTPUT);
+    }
+    if (LittleFS.begin()) {
+        String s = "targettemp.";
+        s += m_name;
+        fs::File f = LittleFS.open(s, "r");
+        if (f) {
+            String y;
+            while (f.available()) {
+                y = f.readString();
+            }
+            m_target_temp = y.toInt();
+            f.close();
+        }
+        LittleFS.end();
     }
 }
 
@@ -337,4 +352,19 @@ void HeatChannel::drawCountdown() const {
             }
     }
     tft.drawString(t,channel_countdown_x + channel_countdown_w,m_y,fontnum);
+}
+
+
+void HeatChannel::setTargetTemp(int target) {
+    m_target_temp = target;
+    if (LittleFS.begin()) {
+        String s = "targettemp.";
+        s += m_name;
+        fs::File f = LittleFS.open(s, "w");
+        if (f) {
+            f.print(target);
+            f.close();
+        }
+        LittleFS.end();
+    }
 }
