@@ -66,6 +66,7 @@ HeatChannel::HeatChannel(
 
 // update timer states
 // returns true if something changed
+// timer or inputs
 bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
     bool ret = m_changed;
     m_changed = false;
@@ -97,27 +98,29 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
     return ret;
 }
 void HeatChannel::adjustTimer(int dt) {
-    m_changed = true;
     switch (dt) {
         case 0:
             // turn off
             if (m_endtime != 0) {
-                if (m_cooldown_duration > 0) {
-                    m_cooldown_time = time(NULL) + m_cooldown_duration;
-                }
-                m_endtime = 0;
-            } else {
+                m_endtime = time(NULL)-1;
+            } else if (m_cooldown_time != 0) {
                 // channel is already off, cancel cooldown
-                m_cooldown_time = 0;
+                m_cooldown_time = time(NULL)-1;
             }
             break;
         case -1:
             // turn on
-            m_endtime = dt;
             m_cooldown_time = 0;
+            m_endtime = dt;
+            break;
+        case -2:
+            // run cooldown cycle to circulate sludge
+            m_cooldown_time = 0;
+            m_endtime = time(NULL)-1;
             break;
         default:
             // turn on for given seconds
+            m_cooldown_time = 0;
             if (m_endtime == 0) {
                 // currently off so calculate absolute off time
                 m_endtime = time(NULL) + dt;
@@ -126,9 +129,9 @@ void HeatChannel::adjustTimer(int dt) {
             } else if (m_endtime > 0) {
                 m_endtime += dt;
             }
-            m_cooldown_time = 0;
     }
     syslog.logf(LOG_DAEMON | LOG_INFO, "%s set to %d",m_name,m_endtime);
+    m_changed = true;
 }
 // set the output state to the zv
 void HeatChannel::setOutput(bool state) {
