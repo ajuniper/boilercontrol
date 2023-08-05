@@ -7,14 +7,15 @@
 #include "displayconfig.h"
 #include "display.h"
 #include <LittleFS.h>
+#include <ESPAsyncWebServer.h>
 
-#include <Syslog.h>
-extern Syslog syslog;
+#include <mysyslog.h>
 
 //#define HEAT_COOLDOWN 600
 #define HEAT_COOLDOWN 30
 
 HeatChannel::HeatChannel(
+    int a_id,
     const char * a_name,
     int a_pin_o_zv,
     int a_pin_o_zv_satisfied,
@@ -23,8 +24,10 @@ HeatChannel::HeatChannel(
     int a_target_temp,
     bool a_enabled,
     int a_cooldown_duration,
-    int a_y
-) : m_name(a_name),
+    int a_y,
+    int a_setback
+) : m_id(a_id),
+    m_name(a_name),
     m_pin_zv(a_pin_o_zv),
     m_pin_zv_satisfied(a_pin_o_zv_satisfied),
     m_ready(a_pin_i_zv_ready,a_name,"ready"),
@@ -38,7 +41,8 @@ HeatChannel::HeatChannel(
     m_zv_output(false),
     m_zv_satisfied_output(false),
     m_changed(true), // trigger output setup first time around
-    m_y(a_y)
+    m_y(a_y),
+    m_scheduler(*this, a_setback)
 {
     if (m_pin_zv > -1) {
         digitalWrite(m_pin_zv, RELAY_OFF);
@@ -47,20 +51,6 @@ HeatChannel::HeatChannel(
     if (m_pin_zv_satisfied > -1) {
         digitalWrite(m_pin_zv_satisfied, RELAY_OFF);
         pinMode(m_pin_zv_satisfied, OUTPUT);
-    }
-    if (LittleFS.begin()) {
-        String s = "targettemp.";
-        s += m_name;
-        fs::File f = LittleFS.open(s, "r");
-        if (f) {
-            String y;
-            while (f.available()) {
-                y = f.readString();
-            }
-            m_target_temp = y.toInt();
-            f.close();
-        }
-        LittleFS.end();
     }
 }
 
@@ -74,6 +64,7 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
         if (now > m_endtime) {
             // time to turn off
             m_endtime = 0;
+            m_lastTime = time(NULL);
             const char * c = "";
             if (m_cooldown_duration > 0) {
                 m_cooldown_time = now + m_cooldown_duration;
@@ -87,6 +78,7 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
         if (now > m_cooldown_time) {
             // time to turn off
             m_cooldown_time = 0;
+            m_lastTime = time(NULL);
             syslog.logf(LOG_DAEMON|LOG_INFO,"%s cooldown finished",m_name);
             ret = true;
         }
@@ -210,8 +202,23 @@ bool HeatChannel::canCooldown() const {
            (m_ready.pinstate() == true);
 }
 
+void HeatChannel::readConfig()
+{
+    String s = "targettemp.";
+    s += m_id;
+    fs::File f = LittleFS.open(s, "r");
+    if (f) {
+        String y;
+        while (f.available()) {
+            y = f.readString();
+        }
+        m_target_temp = y.toInt();
+        f.close();
+    }
+}
+
 HeatChannel channels[] = {
-    HeatChannel("Hot Water",
+    HeatChannel(0, "Hot Water",
                 PIN_O_HW_CALL,
                 PIN_O_HW_SATISFIED,
                 PIN_I_HW_CALLS,
@@ -219,8 +226,10 @@ HeatChannel channels[] = {
                 65, // target temp
                 true,
                 HEAT_COOLDOWN,
-                channel_y),
-    HeatChannel("Heating",
+                channel_y,
+                0),
+
+    HeatChannel(1, "Heating",
                 PIN_O_HEAT_CALL,
                 -1,
                 PIN_I_ZV1_READY,
@@ -228,9 +237,10 @@ HeatChannel channels[] = {
                 55, // target temp
                 true,
                 HEAT_COOLDOWN,
-                channel_y+channel_spacing),
+                channel_y+channel_spacing,
+                45*60),
 
-    HeatChannel("Kitchen",
+    HeatChannel(2, "Kitchen",
                 PIN_O_ZV2_CALL,
                 -1,
                 PIN_I_ZV2_READY,
@@ -238,7 +248,8 @@ HeatChannel channels[] = {
                 55, // target temp
                 false,
                 HEAT_COOLDOWN,
-                channel_y+channel_spacing+channel_spacing)
+                channel_y+channel_spacing+channel_spacing,
+                45*60)
 };
 const size_t num_heat_channels = sizeof(channels)/sizeof(channels[0]);
 
@@ -265,7 +276,17 @@ static void input_watch(void *) {
 
 // channels initialiser
 void heatchannel_setup() {
-  xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
+    if (LittleFS.begin()) {
+        int i;
+        for (i=0; i<num_heat_channels; ++i) {
+            channels[i].readConfig();
+        }
+        scheduler_setup();
+        LittleFS.end();
+    } else {
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+    }
+    xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
 }
 
 void HeatChannel::initDisplay() {
@@ -362,7 +383,7 @@ void HeatChannel::setTargetTemp(int target) {
     m_target_temp = target;
     if (LittleFS.begin()) {
         String s = "targettemp.";
-        s += m_name;
+        s += m_id;
         fs::File f = LittleFS.open(s, "w");
         if (f) {
             f.print(target);

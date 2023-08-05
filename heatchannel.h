@@ -1,10 +1,13 @@
 //////////////////////////////////////////////////////////////////////////////
 //
 // Heat channel objects
+#pragma once
 #include "mainsdetect.h"
+#include "scheduler.h"
 
 class HeatChannel {
 private:
+    int m_id;
     const char * const m_name;
     int m_pin_zv;
     int m_pin_zv_satisfied;
@@ -19,6 +22,8 @@ private:
     bool m_zv_output;
     bool m_zv_satisfied_output;
     bool m_changed;
+    time_t m_lastTime;
+    Scheduler m_scheduler;
 
     int m_y; // y display position
 
@@ -27,6 +32,7 @@ private:
     void drawCountdown() const;
 public:
     HeatChannel(
+        int a_id,
         const char * a_name,
 	int a_pin_o_zv,
 	int a_pin_o_zv_satisfied,
@@ -35,12 +41,14 @@ public:
         int a_target_temp,
 	bool a_enabled,
 	int a_cooldown_duration,
-        int a_y
+        int a_y,
+        int a_setback
     );
 
     // update timer states
     // returns true if something changed
     bool updateTimers(time_t now, unsigned long millinow);
+    int getId() const { return m_id; }
     const char * getName() { return m_name; }
     bool getEnabled() { return m_enabled; }
     bool getActive() const { return m_enabled && m_active; };
@@ -80,6 +88,9 @@ public:
     void initDisplay();
     void updateDisplay();
     void drawIO(int row, int oncolour, bool state) const;
+    void readConfig();
+    time_t lastTime() { return m_lastTime; }
+    Scheduler & getScheduler() { return m_scheduler; }
 };
 
 extern const size_t num_heat_channels;

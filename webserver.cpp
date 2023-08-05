@@ -2,7 +2,6 @@
 //
 // Web Server Stuff
 #include <Arduino.h>
-#include <Update.h>
 #include "mywebserver.h"
 #include "webserver.h"
 #include "heatchannel.h"
@@ -11,9 +10,6 @@
 
 extern bool o_pump_on;
 extern bool o_boiler_on;
-
-//flag to use from web update to reboot the ESP
-bool shouldReboot = false;
 
 static const char statuspage[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
