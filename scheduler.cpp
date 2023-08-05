@@ -93,10 +93,28 @@ daylinks = document.getElementsByClassName("daylinks");
 for (i = 0; i < daylinks.length; i++) {
 daylinks[i].className = daylinks[i].className.replace(" active", "");
 }
-evt.currentTarget.className += " active";
+evt.className += " active";
 selectedDay = daynum;
 selectedSchedule = "s" + selectedCh+"."+selectedDay;
 document.getElementById(selectedSchedule).style.display = "block";
+}
+function clickDone() {
+location.href="boilercontrol";
+}
+function copyForwards() {
+selectedDay+=1;
+if (selectedDay >= 7) { selectedDay -= 7; }
+let f = document.getElementById(selectedSchedule);
+f = f.getElementsByTagName("input");
+let t = document.getElementById("s"+selectedCh+"."+selectedDay);
+t = t.getElementsByTagName("input");
+for(v in f) {
+if (t[v].checked != f[v].checked) {
+t[v].checked = f[v].checked;
+toggleCheckbox(t[v]);
+}
+}
+clickDay(document.getElementById("days").children[selectedDay],selectedDay);
 }
 </script>
 </head>
@@ -108,10 +126,9 @@ const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sun
 let dt = document.getElementById("days");
 for(i=0;i<days.length;++i) {
 var s = document.createElement("button");
-/*s.setAttribute("type", "button");*/
 s.setAttribute("class", "daylinks");    
 if (i==0) { s.setAttribute("class", "daylinks active"); }
-s.setAttribute("onclick", "clickDay(event, "+i+")");
+s.setAttribute("onclick", "clickDay(this, "+i+")");
 s.innerHTML=days[i];
 dt.appendChild(s);
 }
@@ -172,6 +189,7 @@ static String schedpage_processor(const String& var){
         s += channels[i].getName();
         s+="</button>";
     }
+    s+="<button id=\"ct3\" class=\"chlinks\" onclick=\"clickDone()\">Done</button><button id=\"ct4\" class=\"chlinks\" onclick=\"copyForwards()\">Copy to Next</button>";
 
     s+="</div><div id=\"days\" class=\"tab\"></div>";
 
