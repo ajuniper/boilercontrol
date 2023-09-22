@@ -14,10 +14,22 @@ scheduler
     URL to set 15 minute slot
     URL to adjust base warmup
     scheduler to obey channel active flag
+    copy-to-next button
+    done button
 
 FIX
+. pump stays blue after channels go off
+. timezone not in effect
+. littlefs fails to open/initialize every time
+. 1h displayed as 1:60
+. web
+        . need newline before Hot Water 1h
+        . obey channel enabled flag
+        . make look like lcd
+        . add control for enable
 
 TODO
+. scheduler onscreen
 . boiler cycling based on outside temp
 . persist on-until time in rtc/flash (scheduler fixes)
 . (outside) temp setback / weather query
@@ -27,14 +39,3 @@ TODO
 . ntp, syslog targets from dhcp
 . watchdog timer
 
-every minute
-    if not running
-        calculate current warmup time
-        if (now + warmup) is scheduled on
-            calculate end time
-            set timer
-        else if >24h since last run
-            set timer for (now-1) / -2
-
-Changes
-display to set schedule
