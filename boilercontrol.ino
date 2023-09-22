@@ -1,4 +1,4 @@
-#include <WiFi.h>
+#include <mywifi.h>
 #include <AsyncTCP.h>
 #include "time.h"
 #include <WiFiUdp.h>
@@ -50,37 +50,13 @@ void setup() {
     Serial.begin(115200);
     mytime_setup(MY_TIMEZONE, PIN_RTC_CLK, PIN_RTC_DATA, PIN_RTC_RST);
 
-    xTaskCreate(wifi_task, "wifi", 10000, NULL, 1, NULL);
+    WIFI_init("boiler");
     xTaskCreate(output_task, "outputs", 10000, NULL, 1, &outputtask_handle);
     heatchannel_setup();
     webserver_setup();
 
     // start the display update task
     display_init();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// wifi management
-// separate task to not stall boot
-static void wifi_task (void*)
-{
-    // Connect to Wi-Fi
-    WiFi.setHostname("boiler");
-    WiFi.begin(ssid, password);
-
-    // wait for wifi to be ready
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(100);
-        Serial.println("Connecting to WiFi..");
-    }
-
-    // Init and get the network time
-    configTime(0, 0, MY_NTP_SERVER1, MY_NTP_SERVER2, MY_NTP_SERVER3);
-
-    // Print ESP Local IP Address
-    Serial.println(WiFi.localIP());
-    syslog.logf(LOG_DAEMON | LOG_WARNING, "started");
 }
 
 //////////////////////////////////////////////////////////////////////////////
