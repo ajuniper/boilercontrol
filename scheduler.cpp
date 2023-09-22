@@ -9,8 +9,6 @@
 #include <LittleFS.h>
 #include <mysyslog.h>
 
-// TODO add "done" button
-// TODO add "copy from previous" and "copy to next"
 static const char schedpage[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
