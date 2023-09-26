@@ -371,7 +371,7 @@ void HeatChannel::drawCountdown() const {
             if (m_endtime > time(NULL)) {
                 tft.setTextColor(channel_colour,TFT_BLACK);
                 int remaining = m_endtime - time(NULL) + 59;
-                sprintf(tt,"%2d:%02d",(remaining/3600),(remaining/60));
+                sprintf(tt,"%2d:%02d",(remaining/3600),((remaining/60)%60));
                 t=tt;
             }
     }
