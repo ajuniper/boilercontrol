@@ -229,6 +229,7 @@ void loop() {
                 }
             } else {
                 // nothing on
+                o_pump_state = OUTPUT_OFF;
 
                 // action the satisfied relays to off, not needed
                 for (i=0; i<num_heat_channels; ++i) {
