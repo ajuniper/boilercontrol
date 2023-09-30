@@ -6,6 +6,8 @@ pump/boiler icon colour
 rtc integration
 target temperature adjustment, flash persistence
 summertime heating cycling
+1h displayed as 1:60
+pump stays blue after channels go off
 scheduler
     scheduler thread
     initialiser to read from flash
@@ -18,10 +20,8 @@ scheduler
     done button
 
 FIX
-. pump stays blue after channels go off
 . timezone not in effect
 . littlefs fails to open/initialize every time
-. 1h displayed as 1:60
 . web
         . need newline before Hot Water 1h
         . obey channel enabled flag
