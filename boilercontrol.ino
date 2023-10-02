@@ -8,6 +8,7 @@
 #include "tempsensors.h"
 #include "mytime.h"
 #include "outputs.h"
+#include <LittleFS.h>
 
 // task to update outputs
 static TaskHandle_t outputtask_handle = NULL;
@@ -51,6 +52,22 @@ void setup() {
     mytime_setup(MY_TIMEZONE, PIN_RTC_CLK, PIN_RTC_DATA, PIN_RTC_RST);
 
     WIFI_init("boiler");
+    const char * m = "filesystem opened";
+    if (!LittleFS.begin()) {
+        m = "filesystem begin failed, try format";
+        Serial.println(m);
+        syslog.logf(m);
+        if (!LittleFS.format()) {
+            m = "filesystem format failed";
+            Serial.println(m);
+            syslog.logf(m);
+        } else if (!LittleFS.begin()) {
+            m = "second filesystem begin failed";
+            Serial.println(m);
+            syslog.logf(m);
+        }
+    }
+    LittleFS.end();
     xTaskCreate(output_task, "outputs", 10000, NULL, 1, &outputtask_handle);
     heatchannel_setup();
     webserver_setup();
