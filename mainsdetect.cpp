@@ -3,9 +3,7 @@
 // Mains detection objects
 #include <Arduino.h>
 #include "mainsdetect.h"
-
-#include <Syslog.h>
-extern Syslog syslog;
+#include <mysyslog.h>
 
 // input processing stuff
 // debounce interval
