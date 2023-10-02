@@ -390,5 +390,7 @@ void HeatChannel::setTargetTemp(int target) {
             f.close();
         }
         LittleFS.end();
+    } else {
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
     }
 }
