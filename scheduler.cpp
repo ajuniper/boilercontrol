@@ -256,7 +256,7 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
 void Scheduler::readConfig()
 {
     // read saved setback config
-    String s = "warmup.";
+    String s = "/warmup.";
     s+=mChannel.getId();
     fs::File f = LittleFS.open(s, "r");
     if (f) {
@@ -271,7 +271,7 @@ void Scheduler::readConfig()
     }
 
     // read saved schedule
-    s="sched.";
+    s="/sched.";
     s+=mChannel.getId();
     f = LittleFS.open(s, "r");
     if (f) {
@@ -336,7 +336,7 @@ time_t Scheduler::lastChange()
 void Scheduler::saveChanges()
 {
     if (mLastChange != 0) { return; }
-    String s="sched.";
+    String s="/sched.";
     s+=mChannel.getId();
     fs::File f = LittleFS.open(s, "w");
     if (f) {
