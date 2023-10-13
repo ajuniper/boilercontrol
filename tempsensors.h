@@ -11,6 +11,7 @@ class tempsensor_t {
         {
         }
         const char * getName() const { return m_name; }
+        const char * getAddr() const { return m_addr; }
         int getTemp() const;
         void setTemp(int t) { m_temp = t; }
     private:
