@@ -8,6 +8,9 @@
 #include "tempsensors.h"
 #include "mytime.h"
 #include "outputs.h"
+#include <tempreporter.h>
+#include <mywebserver.h>
+#include <webupdater.h>
 #include <LittleFS.h>
 
 // task to update outputs
@@ -59,21 +62,24 @@ void setup() {
         syslog.logf(m);
         if (!LittleFS.format()) {
             m = "filesystem format failed";
-            Serial.println(m);
-            syslog.logf(m);
         } else if (!LittleFS.begin()) {
             m = "second filesystem begin failed";
-            Serial.println(m);
-            syslog.logf(m);
         }
     }
+    Serial.println(m);
+    syslog.logf(m);
+
     LittleFS.end();
     xTaskCreate(output_task, "outputs", 10000, NULL, 1, &outputtask_handle);
-    heatchannel_setup();
     webserver_setup();
+    tempsensors_init();
+    heatchannel_setup();
 
     // start the display update task
     display_init();
+
+    // firmware updates
+    UD_init(server);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -106,6 +112,7 @@ static void output_task (void *)
         while (n == 0) {
             TickType_t waittime = 5*1000; // 5s
             time_t now = time(NULL);
+            int flow_temp = tempsensors_get("boiler.flow");
 
             // recalculate whether the boiler should be running or not
             // this is where we are cycling the boiler to temperature
@@ -120,13 +127,13 @@ static void output_task (void *)
                 // boiler is already cycling so nothing to do
                 waittime = boiler_cycle_time - now;
 
-            } else if (tempsensors_get("boiler.flow") > last_target_temp) {
+            } else if (flow_temp > last_target_temp) {
                 // boiler just went over temperature
                 if (boiler_cycle_time != 0) {
                     // boiler was already over temp and not cooled after 5 mins
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp is still greater than target");
+                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is still greater than target %dC",flow_temp,last_target_temp);
                 } else {
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp is greater than target");
+                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC",flow_temp,last_target_temp);
                 }
                 // start a new cycle period
                 this_boiler = false;
@@ -140,7 +147,7 @@ static void output_task (void *)
                 o_boiler_state = OUTPUT_HEATING;
                 if (boiler_cycle_time != 0) {
                     // boiler just finished cycling
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler back on");
+                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler back on, temp now %dC",flow_temp);
                     boiler_cycle_time = 0;
                 }
             }
@@ -148,14 +155,16 @@ static void output_task (void *)
             // TODO wait for mains to be at 0v
             // update the outputs
             digitalWrite(PIN_O_PUMP_ON, last_pump?RELAY_ON:RELAY_OFF);
-            digitalWrite(PIN_O_BOILER_ON, last_boiler?RELAY_ON:RELAY_OFF);
+            digitalWrite(PIN_O_BOILER_ON, this_boiler?RELAY_ON:RELAY_OFF);
 
-            n = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS( 60000 ) );
+            n = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS( waittime) );
         } // end of wait for signal/timeout
 
-        Serial.println("output change requested");
         last_pump = o_pump_on;
         if (last_boiler != o_boiler_on) {
+            if (o_boiler_on) {
+                syslog.logf(LOG_DAEMON | LOG_WARNING, "Turning boiler on, temp now %dC",tempsensors_get("boiler.flow"));
+            }
             last_boiler = o_boiler_on;
             boiler_cycle_time = 0;
         }
@@ -196,12 +205,11 @@ void loop() {
                 if (channels[i].canFire()) {
                     // something is asking for heat
                     o_pump_on = true;
-                    o_pump_state = OUTPUT_HEATING;
                     o_boiler_on = true;
                     // boiler state is controlled from output handler
                     int t = channels[i].targetTemp();
                     if (t > target_temp) { target_temp = t; }
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Run pump and boiler");
+                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Run pump and boiler to %dC",target_temp);
                 }
             }
         }
@@ -217,6 +225,10 @@ void loop() {
             for (i=0; i<num_heat_channels; ++i) {
                 channels[i].setOutput(channels[i].wantFire());
             }
+
+            // update what the pump is doing
+            o_pump_state = o_pump_on?OUTPUT_HEATING:OUTPUT_OFF;
+            // boiler state is controlled by output task
         } else {
             // nothing asking for heat, what about cooldown?
             calling = false;
@@ -264,7 +276,6 @@ void loop() {
         }
 
         // set system outputs - via task to deal with mains sync
-        Serial.println("request output change");
         xTaskNotifyGive( outputtask_handle );
     }
 
