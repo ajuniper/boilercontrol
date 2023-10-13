@@ -1,13 +1,6 @@
 TEST
-web server
-fake temperatures
-temperature cycling
-pump/boiler icon colour
 rtc integration
-target temperature adjustment, flash persistence
 summertime heating cycling
-1h displayed as 1:60
-pump stays blue after channels go off
 scheduler
     scheduler thread
     initialiser to read from flash
@@ -20,13 +13,13 @@ scheduler
     done button
 
 FIX
+. flash persistence
+. when activate from web page sometimes goes into cooldown
+. need syslog when pump/boiler turned off
 . timezone not in effect
 . littlefs fails to open/initialize every time
 . web
-        . need newline before Hot Water 1h
-        . obey channel enabled flag
         . make look like lcd
-        . add control for enable
 
 TODO
 . scheduler onscreen
@@ -39,3 +32,16 @@ TODO
 . ntp, syslog targets from dhcp
 . watchdog timer
 
+TESTED
+target temperature adjustment
+temperature cycling
+web server
+pump/boiler icon colour
+1h displayed as 1:60
+pump stays blue after channels go off
+fake temperatures
+. web
+        . need newline before Hot Water 1h
+        . obey channel enabled flag
+        . add control for enable
+. why does pump run on when HW satisfied? (icon only)
