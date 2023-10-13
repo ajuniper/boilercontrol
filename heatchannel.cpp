@@ -204,7 +204,7 @@ bool HeatChannel::canCooldown() const {
 
 void HeatChannel::readConfig()
 {
-    String s = "targettemp.";
+    String s = "/targettemp.";
     s += m_id;
     fs::File f = LittleFS.open(s, "r");
     if (f) {
@@ -382,12 +382,14 @@ void HeatChannel::drawCountdown() const {
 void HeatChannel::setTargetTemp(int target) {
     m_target_temp = target;
     if (LittleFS.begin()) {
-        String s = "targettemp.";
+        String s = "/targettemp.";
         s += m_id;
         fs::File f = LittleFS.open(s, "w");
         if (f) {
             f.print(target);
             f.close();
+        } else {
+            syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open %s",s.c_str());
         }
         LittleFS.end();
     } else {
