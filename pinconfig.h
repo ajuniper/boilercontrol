@@ -21,12 +21,12 @@
 #define PIN_I_ZV1_READY 34
 #define PIN_I_ZV2_READY 35
 
-#define PIN_O_HW_CALL 32
-#define PIN_O_HEAT_CALL 33
+#define PIN_O_HW_CALL 14
+#define PIN_O_HEAT_CALL 26
 #define PIN_O_PUMP_ON 25
-#define PIN_O_BOILER_ON 26
-#define PIN_O_ZV2_CALL 27
-#define PIN_O_HW_SATISFIED 14
+#define PIN_O_BOILER_ON 33
+#define PIN_O_ZV2_CALL 32
+#define PIN_O_HW_SATISFIED 27
 
 // display
 #define PIN_DISPLAY_CS 23
