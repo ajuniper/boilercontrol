@@ -1,6 +1,5 @@
 TEST
-rtc integration
-summertime heating cycling
+summertime heating cycling (30s every 10 mins)
 scheduler
     scheduler thread
     initialiser to read from flash
@@ -13,10 +12,11 @@ scheduler
     done button
 
 FIX
-. flash persistence
+. save channel active setting in flash
+. changing schedule should force reevaluation
+. scheduler page does not render due to JS error
 . when activate from web page sometimes goes into cooldown
 . need syslog when pump/boiler turned off
-. timezone not in effect
 . littlefs fails to open/initialize every time
 . web
         . make look like lcd
@@ -33,6 +33,7 @@ TODO
 . watchdog timer
 
 TESTED
+rtc integration
 target temperature adjustment
 temperature cycling
 web server
@@ -45,3 +46,5 @@ fake temperatures
         . obey channel enabled flag
         . add control for enable
 . why does pump run on when HW satisfied? (icon only)
+. flash persistence
+. timezone not in effect
