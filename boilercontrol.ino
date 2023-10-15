@@ -32,7 +32,11 @@ const char * syslog_name = "boiler";
 
 // if we cycle the boiler off at its target temperature
 // then we can't start it again for this period
+#ifdef SHORT_TIMES
+#define BOILER_SHORT_CYCLE 30
+#else
 #define BOILER_SHORT_CYCLE 300
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 //

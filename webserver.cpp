@@ -2,6 +2,7 @@
 //
 // Web Server Stuff
 #include <Arduino.h>
+#include "projectconfig.h"
 #include "mywebserver.h"
 #include "webserver.h"
 #include "heatchannel.h"

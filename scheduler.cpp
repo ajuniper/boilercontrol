@@ -2,12 +2,20 @@
 //
 // Scheduler
 #include <Arduino.h>
+#include "projectconfig.h"
 #include "mywebserver.h"
 #include "scheduler.h"
 #include "heatchannel.h"
 #include <time.h>
 #include <LittleFS.h>
 #include <mysyslog.h>
+
+// max time before running the pump for a short while
+#ifdef SHORT_TIMES
+#define CIRCULATION_TIME 86400
+#else
+#define CIRCULATION_TIME 600
+#endif
 
 static const char schedpage[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
@@ -97,7 +105,7 @@ selectedSchedule = "s" + selectedCh+"."+selectedDay;
 document.getElementById(selectedSchedule).style.display = "block";
 }
 function clickDone() {
-location.href="boilercontrol";
+location.href="/";
 }
 function copyForwards() {
 selectedDay+=1;
@@ -182,8 +190,10 @@ static String schedpage_processor(const String& var){
     for(i=0; i<num_heat_channels; ++i) {
         if (!channels[i].getEnabled()) { continue ; }
         s+="<button id=\"ct"+String(i)+"\" class=\"chlinks";
-        s+=(i==0)?"active":"";
-        s+="\" onclick=\"clickChannel(event, 0)\">";
+        s+=(i==0)?" active":"";
+        s+="\" onclick=\"clickChannel(event, ";
+        s+=String(i);
+        s+=")\">";
         s += channels[i].getName();
         s+="</button>";
     }
@@ -193,7 +203,7 @@ static String schedpage_processor(const String& var){
 
     for(i=0; i<num_heat_channels; ++i) {
         if (!channels[i].getEnabled()) { continue ; }
-        s+="<div id=\"c"+String(i)+" class=\"chcontent\"></div>";
+        s+="<div id=\"c"+String(i)+"\" class=\"chcontent\"></div>";
     }
 
     return s;
@@ -204,7 +214,7 @@ static String schedpage_processor(const String& var){
 static void sched_set(AsyncWebServerRequest *request) {
     AsyncWebServerResponse *response = nullptr;
     String x,y;
-    String z("Invalid Paremeters");
+    String z("Invalid Parameters");
     int rc = 400;
     // GET /sched_set?ch=X&day=D&slot=H:MM&state=01
     // d=0-6 M-S
@@ -220,19 +230,22 @@ static void sched_set(AsyncWebServerRequest *request) {
             x = request->getParam("day")->value();
             int j = x.toInt();
             x = request->getParam("slot")->value();
-            if (channels[ch].getScheduler().set(j,x,i)) {
-                y = "Channel ";
-                y+=channels[ch].getName();
-                y+=" day ";
-                y+=String(j);
-                y+=" slot ";
-                y+=x;
+            const char * err;
+            if ((err = channels[ch].getScheduler().set(j,x,i)) == NULL) {
+                z = "Channel ";
+                z+=channels[ch].getName();
+                z+=" day ";
+                z+=String(j);
+                z+=" slot ";
+                z+=x;
                 if (i==0) {
-                    y+=" cleared";
+                    z+=" cleared";
                 } else {
-                    y+=" set";
+                    z+=" set";
                 }
-                response = request->beginResponse(200, "text/plain", y);
+                rc = 200;
+            } else {
+                z = err;
             }
         } else {
             z = "Invalid channel "+x;
@@ -320,9 +333,12 @@ void Scheduler::checkSchedule(int d, int h, int m)
         // set timer
         t += (c * 15 * 60);
         mChannel.adjustTimer(t);
-    } else if ((time(NULL) - mChannel.lastTime()) > 86400) {
+        syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
+    } else if ((time(NULL) - mChannel.lastTime()) > CIRCULATION_TIME) {
         // if >24h since last run
         // set timer for (now-1) / -2
+        // sludge stopper
+        syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
         mChannel.adjustTimer(-2);
     }
 }
@@ -403,25 +419,25 @@ static void scheduler_run(void *)
     }
 }
 
-bool Scheduler::set(int d, String & hm, bool state)
+const char * Scheduler::set(int d, String & hm, bool state)
 {
     // validate inputs
-    if (d < 0 || d > 6) { return false; }
+    if (d < 0 || d > 6) { return "Invalid day"; }
     // unix time is Sunday=0 but ui is Monday=0
     d = (d+1)%7;
     // extract h
     int h = hm.toInt();
-    if (h < 0 || h>23) { return false; }
+    if (h < 0 || h>23) { return "Invalid hour"; }
     // extract m
     int m = hm.indexOf(":");
-    if (m < 0) { return false; }
+    if (m < 0) { return "No colon found"; }
     m = hm.substring(m+1).toInt();
-    if (m != 0 && m != 15 && m != 30 && m != 45) { return false; }
+    if (m != 0 && m != 15 && m != 30 && m != 45) { return "Invalid minute"; }
     // convert to quarter hours
     m = m/15;
     mSchedule[d][h][m] = state;
     mLastChange = time(NULL);
-    return true;
+    return NULL;
 }
 
 void scheduler_setup() {

@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "projectconfig.h"
 #include "display.h"
 #include <WiFi.h>
 

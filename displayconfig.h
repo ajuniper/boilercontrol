@@ -31,8 +31,11 @@
 #define channel_timer_w channel_icon_size
 #define channel_countdown_x 215
 #define channel_countdown_w 98
-//#define timer_increment 3600
+#ifdef SHORT_TIMES
 #define timer_increment 10
+#else
+#define timer_increment 3600
+#endif
 
 #define temp_font nullptr
 #define temp_x 80

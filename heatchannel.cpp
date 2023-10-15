@@ -2,6 +2,7 @@
 //
 // Heat channel objects
 #include <Arduino.h>
+#include "projectconfig.h"
 #include "pinconfig.h"
 #include "heatchannel.h"
 #include "displayconfig.h"
@@ -11,8 +12,13 @@
 
 #include <mysyslog.h>
 
-//#define HEAT_COOLDOWN 600
+#ifdef SHORT_TIMES
 #define HEAT_COOLDOWN 30
+#define HEAT_SETBACK 60
+#else
+#define HEAT_COOLDOWN 600
+#define HEAT_SETBACK (45*60)
+#endif
 
 HeatChannel::HeatChannel(
     int a_id,
@@ -238,7 +244,7 @@ HeatChannel channels[] = {
                 true,
                 HEAT_COOLDOWN,
                 channel_y+channel_spacing,
-                45*60),
+                HEAT_SETBACK),
 
     HeatChannel(2, "Kitchen",
                 PIN_O_ZV2_CALL,
@@ -249,7 +255,7 @@ HeatChannel channels[] = {
                 false,
                 HEAT_COOLDOWN,
                 channel_y+channel_spacing+channel_spacing,
-                45*60)
+                HEAT_SETBACK)
 };
 const size_t num_heat_channels = sizeof(channels)/sizeof(channels[0]);
 

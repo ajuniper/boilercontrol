@@ -2,6 +2,7 @@
 //////////////////////////////////////////////////////////////////
 //
 // temperature sensors
+#include "projectconfig.h"
 #include "pinconfig.h"
 #include "displayconfig.h"
 #include "tempsensors.h"

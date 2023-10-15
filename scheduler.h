@@ -13,7 +13,8 @@ class Scheduler {
         unsigned char mSchedule[7][24][4];
     public:
         Scheduler (HeatChannel & aChannel, int setback);
-        bool set(int d, String & hm, bool state);
+        // returns null if all ok, error string otherwise
+        const char * set(int d, String & hm, bool state);
         void checkSchedule(int d, int h, int m);
         time_t lastChange(); // time of last change, 0 if none pending
         void saveChanges();

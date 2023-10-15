@@ -2,6 +2,7 @@
 //
 // Mains detection objects
 #include <Arduino.h>
+#include "projectconfig.h"
 #include "mainsdetect.h"
 #include <mysyslog.h>
 
