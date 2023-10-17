@@ -221,6 +221,17 @@ void HeatChannel::readConfig()
         m_target_temp = y.toInt();
         f.close();
     }
+    s = "/chactive.";
+    s += m_id;
+    f = LittleFS.open(s, "r");
+    if (f) {
+        String y;
+        while (f.available()) {
+            y = f.readString();
+        }
+        m_active = y.toInt();
+        f.close();
+    }
 }
 
 HeatChannel channels[] = {
@@ -402,3 +413,26 @@ void HeatChannel::setTargetTemp(int target) {
         syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
     }
 }
+
+void HeatChannel::setActive(bool a) {
+    if (!a) {
+        m_endtime = 0;
+        m_cooldown_time = 0;
+    }
+    m_active = a;
+    m_changed = true;
+    if (LittleFS.begin()) {
+        String s = "/chactive.";
+        s += m_id;
+        fs::File f = LittleFS.open(s, "w");
+        if (f) {
+            f.print(a);
+            f.close();
+        } else {
+            syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open %s",s.c_str());
+        }
+        LittleFS.end();
+    } else {
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+    }
+};

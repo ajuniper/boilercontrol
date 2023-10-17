@@ -52,14 +52,7 @@ public:
     const char * getName() { return m_name; }
     bool getEnabled() { return m_enabled; }
     bool getActive() const { return m_enabled && m_active; };
-    void setActive(bool a) {
-        if (!a) {
-            m_endtime = 0;
-            m_cooldown_time = 0;
-        }
-        m_active = a;
-        m_changed = true;
-    };
+    void setActive(bool a);
     time_t getTimer() { return m_endtime; }
     unsigned long getCooldown() { return m_cooldown_time; }
     bool getOutput() { return m_enabled && m_zv_output; }
