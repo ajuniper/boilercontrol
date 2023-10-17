@@ -14,14 +14,11 @@ scheduler
 FIX
 . save channel active setting in flash
 . changing schedule should force reevaluation
-. scheduler page does not render due to JS error
-. when activate from web page sometimes goes into cooldown
 . need syslog when pump/boiler turned off
-. littlefs fails to open/initialize every time
-. web
-        . make look like lcd
 
 TODO
+. web
+        . make look like lcd
 . scheduler onscreen
 . boiler cycling based on outside temp
 . persist on-until time in rtc/flash (scheduler fixes)
@@ -48,3 +45,6 @@ fake temperatures
 . why does pump run on when HW satisfied? (icon only)
 . flash persistence
 . timezone not in effect
+. scheduler page does not render due to JS error
+. littlefs fails to open/initialize every time
+. scheduler does not save to flash

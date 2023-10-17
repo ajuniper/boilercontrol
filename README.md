@@ -26,6 +26,7 @@ All requests are `GET` requests (yuk!)
 
 ## LittleFS filesystem files
 
+* `/chactive.N` contains the active/inactive setting for each channel
 * `/warmup.N` contains configured setback time for channel (seconds)
 * `/sched.N` contains schedule for channel
 * `/targettemp.N` contains the target temperature for the channel
