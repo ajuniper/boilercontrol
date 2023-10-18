@@ -1,24 +1,18 @@
 TEST
-summertime heating cycling (30s every 10 mins)
 scheduler
     scheduler thread
-    initialiser to read from flash
-    scheduler method to set slot & save to flash
-    web page to set schedule with js for toggling
-    URL to set 15 minute slot
     URL to adjust base warmup
-    scheduler to obey channel active flag
-    copy-to-next button
-    done button
 
 FIX
-. save channel active setting in flash
+. scheduler js should use one get not 96
+. link to scheduler from front page
+summertime heating cycling (30s every 10 mins)
 . changing schedule should force reevaluation
 . need syslog when pump/boiler turned off
 
 TODO
 . web
-        . make look like lcd
+    . make look like lcd
 . scheduler onscreen
 . boiler cycling based on outside temp
 . persist on-until time in rtc/flash (scheduler fixes)
@@ -47,4 +41,14 @@ fake temperatures
 . timezone not in effect
 . scheduler page does not render due to JS error
 . littlefs fails to open/initialize every time
-. scheduler does not save to flash
+. save channel active setting in flash
+scheduler
+    scheduler does not save to flash
+    scheduler js does not load from boiler
+    initialiser to read from flash
+    URL to set 15 minute slot
+    scheduler method to set slot & save to flash
+    scheduler to obey channel active flag
+    copy-to-next button
+    done button
+    web page to set schedule with js for toggling

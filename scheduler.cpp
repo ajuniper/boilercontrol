@@ -23,105 +23,131 @@ static const char schedpage[] PROGMEM = R"rawliteral(
 <title>Boiler Scheduling</title>
 <style>
 .schedule {
-width: 60px;
-display: grid;
-grid-gap: 0px;
-grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    width: 60px;
+    display: grid;
+    grid-gap: 0px;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
 }
 .tab {
-overflow: hidden;
-border: 1px solid #ccc;
-background-color: #f1f1f1;
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background-color: #f1f1f1;
 }
 .tab button {
-background-color: inherit;
-float: left;
-border: none;
-outline: none;
-cursor: pointer;
-padding: 5px 16px;
-transition: 0.3s;
-font-size: 14px;
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 5px 16px;
+    transition: 0.3s;
+    font-size: 14px;
 }
 .tab button:hover {
-background-color: #ddd;
+    background-color: #ddd;
 }
 .tab button.active {
-background-color: #ccc;
+    background-color: #ccc;
 }
 .daycontent {
-display: none;
-padding: 6px 12px;
-border: 1px solid #ccc;
-border-top: none;
+    display: none;
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-top: none;
 }
 .timeslot {
-padding: 3px 3px;
-font-size: 12px;
-font-family: sans-serif;
-text-align: right;
+    padding: 3px 3px;
+    font-size: 12px;
+    font-family: sans-serif;
+    text-align: right;
 }
 </style>
 <script>
 var selectedDay = 0;
 var selectedCh = 0;
 var selectedSchedule = 0;
+
+async function loadScheduleCheckbox(ch,day,e) {
+    u="/schedulerset?ch="+ch+"&day="+day+"&slot="+e.value
+    var a = await fetch(u,{method:'get'})
+    var b = await a.text()
+    e.checked = parseInt(b)
+}
+
+function loadSchedule() {
+    let sch = document.getElementById(selectedSchedule).getElementsByTagName("input");
+    for (s in sch) {
+        if (sch[s].value) {
+            loadScheduleCheckbox(selectedCh, selectedDay, sch[s]);
+        }
+    }
+}
+
+async function saveScheduleCheckbox(ch,day,e) {
+    var u = "/schedulerset?ch="+ch+"&day="+day+"&slot="+e.value+"&state=";
+    if(e.checked){ u+="1"; } else {u+="0"};
+    var a = await fetch(u,{method:'get'})
+}
+
 function toggleCheckbox(element) {
-var xhr = new XMLHttpRequest();
-var url = "/schedulerset?ch="+selectedCh+"&day="+selectedDay+"&slot="+element.value+"&state=";
-if(element.checked){ url+="1"; } else {url+="0"};
-xhr.open("GET", url, true);
-xhr.send();
+    saveScheduleCheckbox(selectedCh,selectedDay,element);
 }
+
 function clickChannel(evt, chNum) {
-let i, chcontent, chlinks;
-chcontent = document.getElementsByClassName("chcontent");
-for (i = 0; i < chcontent.length; i++) {
-chcontent[i].style.display = "none";
+    let i, chcontent, chlinks;
+    chcontent = document.getElementsByClassName("chcontent");
+    for (i = 0; i < chcontent.length; i++) {
+        chcontent[i].style.display = "none";
+    }
+    chlinks = document.getElementsByClassName("chlinks");
+    for (i = 0; i < chlinks.length; i++) {
+        chlinks[i].className = chlinks[i].className.replace(" active", "");
+    }
+    evt.currentTarget.className += " active";
+    selectedCh = chNum;
+    selectedSchedule = "s" + selectedCh+"."+selectedDay;
+    document.getElementById("c"+selectedCh).style.display = "block";
+    document.getElementById(selectedSchedule).style.display = "block";
+    loadSchedule();
 }
-chlinks = document.getElementsByClassName("chlinks");
-for (i = 0; i < chlinks.length; i++) {
-chlinks[i].className = chlinks[i].className.replace(" active", "");
-}
-evt.currentTarget.className += " active";
-selectedCh = chNum;
-selectedSchedule = "s" + selectedCh+"."+selectedDay;
-document.getElementById("c"+selectedCh).style.display = "block";
-document.getElementById(selectedSchedule).style.display = "block";
-}
+
 function clickDay(evt, daynum) {
-let i, daycontent, daylinks;
-daycontent = document.getElementsByClassName("daycontent");
-for (i = 0; i < daycontent.length; i++) {
-daycontent[i].style.display = "none";
+    let i, daycontent, daylinks;
+    daycontent = document.getElementsByClassName("daycontent");
+    for (i = 0; i < daycontent.length; i++) {
+        daycontent[i].style.display = "none";
+    }
+    daylinks = document.getElementsByClassName("daylinks");
+    for (i = 0; i < daylinks.length; i++) {
+        daylinks[i].className = daylinks[i].className.replace(" active", "");
+    }
+    evt.className += " active";
+    selectedDay = daynum;
+    selectedSchedule = "s" + selectedCh+"."+selectedDay;
+    document.getElementById(selectedSchedule).style.display = "block";
+    loadSchedule();
 }
-daylinks = document.getElementsByClassName("daylinks");
-for (i = 0; i < daylinks.length; i++) {
-daylinks[i].className = daylinks[i].className.replace(" active", "");
-}
-evt.className += " active";
-selectedDay = daynum;
-selectedSchedule = "s" + selectedCh+"."+selectedDay;
-document.getElementById(selectedSchedule).style.display = "block";
-}
+
 function clickDone() {
-location.href="/";
+    location.href="/";
 }
+
 function copyForwards() {
-selectedDay+=1;
-if (selectedDay >= 7) { selectedDay -= 7; }
-let f = document.getElementById(selectedSchedule);
-f = f.getElementsByTagName("input");
-let t = document.getElementById("s"+selectedCh+"."+selectedDay);
-t = t.getElementsByTagName("input");
-for(v in f) {
-if (t[v].checked != f[v].checked) {
-t[v].checked = f[v].checked;
-toggleCheckbox(t[v]);
+    selectedDay+=1;
+    if (selectedDay >= 7) { selectedDay -= 7; }
+    let f = document.getElementById(selectedSchedule);
+    f = f.getElementsByTagName("input");
+    let t = document.getElementById("s"+selectedCh+"."+selectedDay);
+    t = t.getElementsByTagName("input");
+    for(v in f) {
+        if (t[v].checked != f[v].checked) {
+            t[v].checked = f[v].checked;
+            toggleCheckbox(t[v]);
+        }
+    }
+    clickDay(document.getElementById("days").children[selectedDay],selectedDay);
 }
-}
-clickDay(document.getElementById("days").children[selectedDay],selectedDay);
-}
+
 </script>
 </head>
 <body>
@@ -131,12 +157,12 @@ let i,j, prototype
 const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 let dt = document.getElementById("days");
 for(i=0;i<days.length;++i) {
-var s = document.createElement("button");
-s.setAttribute("class", "daylinks");    
-if (i==0) { s.setAttribute("class", "daylinks active"); }
-s.setAttribute("onclick", "clickDay(this, "+i+")");
-s.innerHTML=days[i];
-dt.appendChild(s);
+    var s = document.createElement("button");
+    s.setAttribute("class", "daylinks");    
+    if (i==0) { s.setAttribute("class", "daylinks active"); }
+    s.setAttribute("onclick", "clickDay(this, "+i+")");
+    s.innerHTML=days[i];
+    dt.appendChild(s);
 }
 prototype = document.createElement("div");
 prototype.setAttribute("class","daycontent");
@@ -144,37 +170,38 @@ var pr2 = document.createElement("form");
 pr2.setAttribute("class","schedule");
 prototype.appendChild(pr2);
 for(i=0;i<24;++i) {
-var l = document.createElement("label");
-var c;
-l.innerHTML=""+i+":00";
-l.setAttribute("class","timeslot");
-pr2.appendChild(l);
-for (j=0; j<60; j+=15) {
-l = document.createElement("label");
-c = document.createElement("input");
-c.setAttribute("type","checkbox");
-if (j==0){
-c.setAttribute("value",""+i+":00");
-} else {
-c.setAttribute("value",""+i+":"+j);
-}
-c.setAttribute("onclick", "toggleCheckbox(this)");
-l.appendChild(c);
-pr2.appendChild(l);
-}
+    var l = document.createElement("label");
+    var c;
+    l.innerHTML=""+i+":00";
+    l.setAttribute("class","timeslot");
+    pr2.appendChild(l);
+    for (j=0; j<60; j+=15) {
+        l = document.createElement("label");
+        c = document.createElement("input");
+        c.setAttribute("type","checkbox");
+        if (j==0){
+            c.setAttribute("value",""+i+":00");
+        } else {
+            c.setAttribute("value",""+i+":"+j);
+        }
+        c.setAttribute("onclick", "toggleCheckbox(this)");
+        l.appendChild(c);
+        pr2.appendChild(l);
+    }
 }
 let chcontent = document.getElementsByClassName("chcontent");
 for (i = 0; i < chcontent.length; i++) {
-for (j=0; j<days.length; ++j) {
-chcontent[i].style.display = "none";
-let d = prototype.cloneNode(true);
-d.id = "s"+i+"."+j;
-chcontent[i].appendChild(d);
-}
+    for (j=0; j<days.length; ++j) {
+        chcontent[i].style.display = "none";
+        let d = prototype.cloneNode(true);
+        d.id = "s"+i+"."+j;
+        chcontent[i].appendChild(d);
+    }
 }
 selectedSchedule = "s" + selectedCh+"."+selectedDay;
 document.getElementById("c"+selectedCh).style.display = "block";
 document.getElementById(selectedSchedule).style.display = "block";
+loadSchedule();
 </script>
 </body>
 </html>
@@ -220,32 +247,41 @@ static void sched_set(AsyncWebServerRequest *request) {
     // d=0-6 M-S
     if (request->hasParam("ch") &&
         request->hasParam("day") &&
-        request->hasParam("slot") &&
-        request->hasParam("state")) {
+        request->hasParam("slot")) {
         x = request->getParam("ch")->value();
         int ch = x.toInt();
-        if ((ch >= 0) && (ch <= num_heat_channels)) {
-            x = request->getParam("state")->value();
-            int i = x.toInt();
+        if ((ch >= 0) && (ch < num_heat_channels)) {
             x = request->getParam("day")->value();
             int j = x.toInt();
-            x = request->getParam("slot")->value();
             const char * err;
-            if ((err = channels[ch].getScheduler().set(j,x,i)) == NULL) {
-                z = "Channel ";
-                z+=channels[ch].getName();
-                z+=" day ";
-                z+=String(j);
-                z+=" slot ";
-                z+=x;
-                if (i==0) {
-                    z+=" cleared";
+            if (request->hasParam("state")) {
+                x = request->getParam("state")->value();
+                int i = x.toInt();
+                if ((err = channels[ch].getScheduler().set(j,request->getParam("slot")->value(),i)) == NULL) {
+                    z = "Channel ";
+                    z+=channels[ch].getName();
+                    z+=" day ";
+                    z+=String(j);
+                    z+=" slot ";
+                    z+=x;
+                    if (i==0) {
+                        z+=" cleared";
+                    } else {
+                        z+=" set";
+                    }
+                    rc = 200;
                 } else {
-                    z+=" set";
+                    z = err;
                 }
-                rc = 200;
             } else {
-                z = err;
+                // serve current state of scheduler slot
+                rc = 200;
+                bool i = false;
+                if ((err = channels[ch].getScheduler().get(j,request->getParam("slot")->value(),i)) == NULL) {
+                    z = String(i);
+                } else {
+                    z = err;
+                }
             }
         } else {
             z = "Invalid channel "+x;
@@ -332,8 +368,8 @@ void Scheduler::checkSchedule(int d, int h, int m)
     if (c > 0) {
         // set timer
         t += (c * 15 * 60);
-        mChannel.adjustTimer(t);
         syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
+        mChannel.adjustTimer(t);
     } else if ((time(NULL) - mChannel.lastTime()) > CIRCULATION_TIME) {
         // if >24h since last run
         // set timer for (now-1) / -2
@@ -351,7 +387,7 @@ time_t Scheduler::lastChange()
 
 void Scheduler::saveChanges()
 {
-    if (mLastChange != 0) { return; }
+    if (mLastChange == 0) { return; }
     String s="/sched.";
     s+=mChannel.getId();
     fs::File f = LittleFS.open(s, "w");
@@ -419,22 +455,41 @@ static void scheduler_run(void *)
     }
 }
 
-const char * Scheduler::set(int d, String & hm, bool state)
+static const char * extractTimeslot(int d, const String & hm, int &h, int &m)
 {
     // validate inputs
     if (d < 0 || d > 6) { return "Invalid day"; }
     // unix time is Sunday=0 but ui is Monday=0
     d = (d+1)%7;
     // extract h
-    int h = hm.toInt();
+    h = hm.toInt();
     if (h < 0 || h>23) { return "Invalid hour"; }
     // extract m
-    int m = hm.indexOf(":");
+    m = hm.indexOf(":");
     if (m < 0) { return "No colon found"; }
     m = hm.substring(m+1).toInt();
     if (m != 0 && m != 15 && m != 30 && m != 45) { return "Invalid minute"; }
     // convert to quarter hours
     m = m/15;
+    return NULL;
+}
+
+const char * Scheduler::get(int d, const String & hm, bool & state)
+{
+    int h;
+    int m;
+    const char * ret = extractTimeslot(d, hm, h, m);
+    if (ret != NULL) { return ret; }
+    state = mSchedule[d][h][m];
+    return NULL;
+}
+
+const char * Scheduler::set(int d, const String & hm, bool state)
+{
+    int h;
+    int m;
+    const char * ret = extractTimeslot(d, hm, h, m);
+    if (ret != NULL) { return ret; }
     mSchedule[d][h][m] = state;
     mLastChange = time(NULL);
     return NULL;
