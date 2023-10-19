@@ -35,7 +35,7 @@ static String statuspage_processor(const String& var){
     int i;
     unsigned long t;
     s+="<p><table border=\"1\">";
-    s+="<tr><th align=\"left\">Name</th><th align=\"left\">Timer</th><th align=\"left\">Target<br/>Temp</th><th align=\"left\">Actions</th><th align=\"left\">State</th></tr>";
+    s+="<tr><th align=\"left\">Name</th><th align=\"left\">Timer</th><th align=\"left\">Target<br/>Temp</th><th align=\"left\">Base<br/>Warmup</th><th align=\"left\">Actions</th><th align=\"left\">State</th></tr>";
     for(i=0; i<num_heat_channels; ++i) {
         if (!channels[i].getEnabled()) { continue ; }
         ch = '0'+i;
@@ -46,7 +46,8 @@ static String statuspage_processor(const String& var){
         s += "</th><td>";
         if (!channels[i].getActive()) {
             s+="Inactive";
-            // empty cell for target temp
+            // empty cell for target temp and warmup time
+            s+="</td><td>";
             s+="</td><td>";
         } else {
             // timer
@@ -87,6 +88,8 @@ static String statuspage_processor(const String& var){
             // target temperature
             s+="</td><td>";
             s+=String(channels[i].targetTemp());
+            s+="</td><td>";
+            s+=String(channels[i].getScheduler().getBaseWarmup());
 
         } // end not inactive
         // actions
@@ -117,6 +120,7 @@ static String statuspage_processor(const String& var){
     }
 
     s+="</table><p><table border=\"1\">";
+    s += "<tr><td colspan=\"2\"><a href=\"scheduler\">Schedules</a></td><tr>";
     s += "<tr><td>Boiler</td><td>";
     switch (o_boiler_state) {
         case OUTPUT_OFF: s+="off"; break;
