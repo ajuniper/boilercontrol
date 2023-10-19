@@ -8,7 +8,7 @@ class HeatChannel;
 class Scheduler {
     private:
         HeatChannel & mChannel;
-        int mBaseWarmup;
+        time_t mBaseWarmup;
         time_t mLastChange;
         unsigned char mSchedule[7][24][4];
     public:
@@ -20,5 +20,7 @@ class Scheduler {
         time_t lastChange(); // time of last change, 0 if none pending
         void saveChanges();
         void readConfig();
+        time_t getBaseWarmup() const { return mBaseWarmup; }
+        time_t getWarmup() const;
 };
 extern void scheduler_setup();

@@ -10,11 +10,16 @@
 #include <LittleFS.h>
 #include <mysyslog.h>
 
-// max time before running the pump for a short while
 #ifdef SHORT_TIMES
-#define CIRCULATION_TIME 86400
+// max time before running the pump for a short while
+#define CIRCULATION_TIME 86400 // s
+// min runtime before running sludgebuster
+#define SLUDGE_UPTIME 300000 // ms
 #else
-#define CIRCULATION_TIME 600
+// max time before running the pump for a short while
+#define CIRCULATION_TIME 600 // s
+// min runtime before running sludgebuster
+#define SLUDGE_UPTIME (24*60*60*1000) // ms
 #endif
 
 static const char schedpage[] PROGMEM = R"rawliteral(
@@ -337,17 +342,44 @@ void Scheduler::readConfig()
 void Scheduler::checkSchedule(int d, int h, int m)
 {
     // calculate current warmup time
-    int t = mBaseWarmup;
+    time_t t = mBaseWarmup;
     // TODO factor in some adjustments
 
     struct tm w2;
     time_t now = time(NULL);
-    int c = 0; // number of 15 minute intervals
+    time_t starttime = now;
+    time_t c = 0; // number of 15 minute intervals
 
-    // if (now + warmup) is scheduled on
-    now += t;
-    localtime_r(&now, &w2);
-    while (mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15] != 0) {
+    // if anything between now and warmup is scheduled on then we should go on
+    // if (starttime + warmup) is scheduled on
+    time_t t2 = t;
+    do {
+        localtime_r(&starttime, &w2);
+        if (mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15] != 0) {
+            // we have found a slot which is on within the warmup window
+            // so drop in to the next loop
+            break;
+        }
+
+        if (c == 0) {
+            // first pass, align to the next 15 minute slot
+            c = min(((time_t)900) - (starttime % 900),t2);
+        } else {
+            // other passes, move by 15 mins or max warmup
+            c = min(((time_t)900), t2);
+        }
+        starttime += c;
+        t2 -= c;
+    } while (t2 > 0);
+
+    c = 0;
+    // did we find a start slot within the warmup window?
+    // if we did, work out how long that interval is for
+    // TODO there's a bug here if schedule says on and off and on
+    // within the warmup window
+    // limit on c is to prevent infinite loop if everything is on
+    while ((mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15] != 0) &&
+           (c < 672)) {
         // calculate end time
         ++c;
 
@@ -365,12 +397,22 @@ void Scheduler::checkSchedule(int d, int h, int m)
             }
         }
     }
+
+    // schedule says we need to turn on
     if (c > 0) {
         // set timer
         t += (c * 15 * 60);
+        // round down in case we are already in the specified slot
+        // (e.g. boot time or if warmup time is not a multiple of 15 minutes)
+        t -= (now % 900);
+
         syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
+
+        // tell the system to do its stuff
         mChannel.adjustTimer(t);
-    } else if ((time(NULL) - mChannel.lastTime()) > CIRCULATION_TIME) {
+
+    } else if (((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
+               ((now - mChannel.lastTime()) > CIRCULATION_TIME)) {
         // if >24h since last run
         // set timer for (now-1) / -2
         // sludge stopper
