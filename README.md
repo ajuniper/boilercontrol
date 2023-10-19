@@ -40,3 +40,19 @@ Need to associate specific DS18B20 with given name via the `/remap` URL above.
 * `boiler.rethw` is the sensor on the return from the hot water tank
 * `boiler.retmain` is the sensor on the return from the main heating circuit
 * `boiler.retext` is the sensor on the return from the alternate heating circuit
+
+## Scheduler web page DOM objects
+
+* channels tabs
+* days tabs
+* c0 c1 (chcontent)
+  * s0.0 s0.1 s0.2 ... (daycontent)
+    * form (schedule)
+      * 00:00 (timeslot)
+      * label
+        * checkbox value="hh:mm"
+      * label
+        * checkbox value="hh:mm"
+      * label
+        * checkbox value="hh:mm"
+...

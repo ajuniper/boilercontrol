@@ -1,19 +1,20 @@
 TEST
 scheduler
-    scheduler thread
+    correct runtime if turn on in middle of HW cycle
+    correctly detect heating if turn on <warmup before schedule
     URL to adjust base warmup
+    scheduler does not account for time slot already partially passed
+    summertime heating cycling (30s every 10 mins)
 
 FIX
 . scheduler js should use one get not 96
-. link to scheduler from front page
-summertime heating cycling (30s every 10 mins)
 . changing schedule should force reevaluation
-. need syslog when pump/boiler turned off
 
 TODO
 . web
     . make look like lcd
 . scheduler onscreen
+. adjust target temp based on return temp
 . boiler cycling based on outside temp
 . persist on-until time in rtc/flash (scheduler fixes)
 . (outside) temp setback / weather query
@@ -52,3 +53,4 @@ scheduler
     copy-to-next button
     done button
     web page to set schedule with js for toggling
+link to scheduler from front page
