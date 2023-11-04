@@ -12,12 +12,12 @@
 
 #ifdef SHORT_TIMES
 // max time before running the pump for a short while
-#define CIRCULATION_TIME 86400 // s
+#define CIRCULATION_TIME 600 // s
 // min runtime before running sludgebuster
 #define SLUDGE_UPTIME 300000 // ms
 #else
 // max time before running the pump for a short while
-#define CIRCULATION_TIME 600 // s
+#define CIRCULATION_TIME 86400 // s
 // min runtime before running sludgebuster
 #define SLUDGE_UPTIME (24*60*60*1000) // ms
 #endif
@@ -72,6 +72,25 @@ var selectedDay = 0;
 var selectedCh = 0;
 var selectedSchedule = 0;
 
+async function loadSchedule() {
+    var u = "/schedulerset?ch="+selectedCh+"&day="+selectedDay
+    var a = await fetch(u,{method:'get'})
+    var b = await a.text()
+    var c = b.split(' ').map(Number);
+    if (c.length != 97) {
+        console.log("Did not get 96 settings for the day, got "+String(c.length));
+        return;
+    }
+    var sch = document.getElementById(selectedSchedule).getElementsByTagName("input");
+    var i = 0;
+    for (s in sch) {
+        if (sch[s].value) {
+            sch[s].checked = c[i];
+            ++i;
+        }
+    }
+}
+
 async function loadScheduleCheckbox(ch,day,e) {
     u="/schedulerset?ch="+ch+"&day="+day+"&slot="+e.value
     var a = await fetch(u,{method:'get'})
@@ -79,7 +98,7 @@ async function loadScheduleCheckbox(ch,day,e) {
     e.checked = parseInt(b)
 }
 
-function loadSchedule() {
+function loadSchedule_old() {
     let sch = document.getElementById(selectedSchedule).getElementsByTagName("input");
     for (s in sch) {
         if (sch[s].value) {
@@ -91,11 +110,11 @@ function loadSchedule() {
 async function saveScheduleCheckbox(ch,day,e) {
     var u = "/schedulerset?ch="+ch+"&day="+day+"&slot="+e.value+"&state=";
     if(e.checked){ u+="1"; } else {u+="0"};
-    var a = await fetch(u,{method:'get'})
+    return await fetch(u,{method:'get'})
 }
 
-function toggleCheckbox(element) {
-    saveScheduleCheckbox(selectedCh,selectedDay,element);
+async function toggleCheckbox(element) {
+    return saveScheduleCheckbox(selectedCh,selectedDay,element);
 }
 
 function clickChannel(evt, chNum) {
@@ -137,17 +156,18 @@ function clickDone() {
     location.href="/";
 }
 
-function copyForwards() {
+async function copyForwards() {
     selectedDay+=1;
     if (selectedDay >= 7) { selectedDay -= 7; }
     let f = document.getElementById(selectedSchedule);
     f = f.getElementsByTagName("input");
     let t = document.getElementById("s"+selectedCh+"."+selectedDay);
     t = t.getElementsByTagName("input");
+
     for(v in f) {
         if (t[v].checked != f[v].checked) {
             t[v].checked = f[v].checked;
-            toggleCheckbox(t[v]);
+            await toggleCheckbox(t[v]);
         }
     }
     clickDay(document.getElementById("days").children[selectedDay],selectedDay);
@@ -249,17 +269,50 @@ static void sched_set(AsyncWebServerRequest *request) {
     String z("Invalid Parameters");
     int rc = 400;
     // GET /sched_set?ch=X&day=D&slot=H:MM&state=01
+    // GET /sched_set?ch=X&day=D&slot=H:MM
+    // GET /sched_set?ch=X&day=D
     // d=0-6 M-S
-    if (request->hasParam("ch") &&
-        request->hasParam("day") &&
-        request->hasParam("slot")) {
+    if (!request->hasParam("ch")) {
+        z = "Channel missing";
+    } else if (!request->hasParam("day")) {
+        z = "Day missing";
+    } else {
+        // get common parameters
         x = request->getParam("ch")->value();
         int ch = x.toInt();
         if ((ch >= 0) && (ch < num_heat_channels)) {
             x = request->getParam("day")->value();
             int j = x.toInt();
             const char * err;
-            if (request->hasParam("state")) {
+
+            if (!request->hasParam("slot")) {
+                // no slot given so return the whole days worth
+                rc = 200;
+                z = "";
+                int h;
+                int m;
+                for (h=0; h<24; ++h) {
+                    for (m=0; m<4; ++m) {
+                        if (channels[ch].getScheduler().get(j,h,m)) {
+                            z += "1 ";
+                        } else {
+                            z += "0 ";
+                        }
+                    }
+                }
+
+            } else if (!request->hasParam("state")) {
+                // serve current state of scheduler slot
+                rc = 200;
+                bool i = false;
+                if ((err = channels[ch].getScheduler().get(j,request->getParam("slot")->value(),i)) == NULL) {
+                    z = String(i);
+                } else {
+                    z = err;
+                }
+
+            } else {
+                // setting the specific slot
                 x = request->getParam("state")->value();
                 int i = x.toInt();
                 if ((err = channels[ch].getScheduler().set(j,request->getParam("slot")->value(),i)) == NULL) {
@@ -278,23 +331,48 @@ static void sched_set(AsyncWebServerRequest *request) {
                 } else {
                     z = err;
                 }
-            } else {
-                // serve current state of scheduler slot
-                rc = 200;
-                bool i = false;
-                if ((err = channels[ch].getScheduler().get(j,request->getParam("slot")->value(),i)) == NULL) {
-                    z = String(i);
-                } else {
-                    z = err;
-                }
             }
         } else {
             z = "Invalid channel "+x;
         }
-    } else {
-        z = "Parameter missing";
     }
     response = request->beginResponse(rc, "text/plain", z);
+    response->addHeader("Connection", "close");
+    request->send(response);
+}
+
+static void warmup_set (AsyncWebServerRequest *request) {
+    AsyncWebServerResponse *response = nullptr;
+    String x,y;
+    // GET /targettemp?ch=N
+    // GET /targettemp?ch=N&temp=X where X is new target temp
+    if (!request->hasParam("ch") && request->hasParam("t")) {
+        response = request->beginResponse(400, "text/plain", "channel or time missing");
+    } else {
+        x = request->getParam("ch")->value();
+        int ch = x.toInt();
+        if ((ch >= 0) && (ch <= num_heat_channels)) {
+            if (request->hasParam("t")) {
+                x = request->getParam("t")->value();
+                int i = x.toInt();
+                channels[ch].getScheduler().setWarmup(i);
+                y = "Setting base warmup time for  ";
+                y+=channels[ch].getName();
+                y+=" to ";
+                y+=x;
+                response = request->beginResponse(200, "text/plain", y);
+            } else {
+                y = "Base warmup time for ";
+                y+=channels[ch].getName();
+                y+=" is ";
+                y+= String(channels[ch].getScheduler().getBaseWarmup());
+                response = request->beginResponse(200, "text/plain", y);
+            }
+        } else {
+            x = "Invalid channel "+x;
+            response = request->beginResponse(400, "text/plain", x);
+        }
+    }
     response->addHeader("Connection", "close");
     request->send(response);
 }
@@ -339,11 +417,15 @@ void Scheduler::readConfig()
     }
 }
 
+time_t Scheduler::getWarmup() const {
+    // TODO factor in some adjustments
+    return mBaseWarmup;
+}
+
 void Scheduler::checkSchedule(int d, int h, int m)
 {
     // calculate current warmup time
-    time_t t = mBaseWarmup;
-    // TODO factor in some adjustments
+    time_t t = getWarmup();
 
     struct tm w2;
     time_t now = time(NULL);
@@ -547,5 +629,6 @@ void scheduler_setup() {
         request->send_P(200, "text/html", schedpage, schedpage_processor);
     });
     server.on("/schedulerset", HTTP_GET, sched_set);
+    server.on("/warmup", HTTP_GET, warmup_set);
     xTaskCreate(scheduler_run, "scheduler", 10000, NULL, 1, NULL);   
 }
