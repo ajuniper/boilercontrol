@@ -1,5 +1,6 @@
 TEST
 scheduler
+    bulk load of daily schedule
     correct runtime if turn on in middle of HW cycle
     correctly detect heating if turn on <warmup before schedule
     URL to adjust base warmup
@@ -7,7 +8,6 @@ scheduler
     summertime heating cycling (30s every 10 mins)
 
 FIX
-. scheduler js should use one get not 96
 . changing schedule should force reevaluation
 
 TODO
@@ -16,6 +16,8 @@ TODO
 . scheduler onscreen
 . adjust target temp based on return temp
 . boiler cycling based on outside temp
+  curl 'https://api.open-meteo.com/v1/forecast?latitude=51.75413&longitude=-1.124867&hourly=temperature_2m&timezone=GMT&timeformat=unixtime&past_days=0&forecast_days=2' |jq -r '.hourly.temperature_2m[]'
+  also base on return temp
 . persist on-until time in rtc/flash (scheduler fixes)
 . (outside) temp setback / weather query
 . auto hotspot if no wifi
@@ -54,3 +56,6 @@ scheduler
     done button
     web page to set schedule with js for toggling
 link to scheduler from front page
+. copy to next Sat->Sun does not work
+. crashes when using copy to next / switching day
+. scheduler js should use one get not 96
