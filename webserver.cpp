@@ -192,7 +192,7 @@ static void web_set_target (AsyncWebServerRequest *request) {
     // GET /targettemp?ch=N
     // GET /targettemp?ch=N&temp=X where X is new target temp
     if (!request->hasParam("ch") && request->hasParam("temp")) {
-        response = request->beginResponse(400, "text/plain", "Sensor id missing");
+        response = request->beginResponse(400, "text/plain", "Channel or temp missing");
     } else {
         x = request->getParam("ch")->value();
         int ch = x.toInt();
