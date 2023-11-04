@@ -16,8 +16,11 @@ All requests are `GET` requests (yuk!)
 * `/fake?id=XXX&temp=t.tt` creates fake sensor `XXX` with value `t.tt` (used for testing)
 * `/scheduler` gives html page for setting schedules
 * `/schedulerset?ch=X&day=D&slot=H:MM&state=01` for updating individual slots in schedules, day = 0-6=M-S, state = 0 or 1
+* `/schedulerset?ch=X&day=D&slot=H:MM` retrieve given schedule slot
+* `/schedulerset?ch=X&day=D` retrieve schedule for day
 * `/heat?ch=N&q=X` set timer for channel, where X is seconds to run (0=off, -1=forever)
 * `/heat?ch=N&a=X` set channel active or inactive
+* `/warmup?ch=N&t=X` set base warmup time for channel N to X seconds
 * `/targettemp?ch=N` reports current target temperature for channel
 * `/targettemp?ch=N&temp=X` sets target temperature for channel
 * `/update` gives page for doing OTA updates
