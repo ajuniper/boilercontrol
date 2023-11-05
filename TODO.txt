@@ -1,14 +1,14 @@
 TEST
 scheduler
-    bulk load of daily schedule
-    correct runtime if turn on in middle of HW cycle
     correctly detect heating if turn on <warmup before schedule
-    URL to adjust base warmup
-    scheduler does not account for time slot already partially passed
-    summertime heating cycling (30s every 10 mins)
+    scheduler warmup set
 
 FIX
+. add file system browser
+. run scheduler at reboot
 . changing schedule should force reevaluation
+. stop button should inhibit scheduler until end of current cycle
+. run heating hotter for some initial period
 
 TODO
 . web
@@ -59,3 +59,8 @@ link to scheduler from front page
 . copy to next Sat->Sun does not work
 . crashes when using copy to next / switching day
 . scheduler js should use one get not 96
+    bulk load of daily schedule
+    correct runtime if turn on in middle of HW cycle
+    URL to adjust base warmup
+    scheduler does not account for time slot already partially passed
+    summertime heating cycling (30s every 10 mins)
