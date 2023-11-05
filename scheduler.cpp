@@ -73,7 +73,8 @@ var selectedCh = 0;
 var selectedSchedule = 0;
 
 async function loadSchedule() {
-    var u = "/schedulerset?ch="+selectedCh+"&day="+selectedDay
+    // unix time is Sunday=0 but ui is Monday=0/Sunday=6
+    var u = "/schedulerset?ch="+selectedCh+"&day="+((selectedDay+1)%%7)
     var a = await fetch(u,{method:'get'})
     var b = await a.text()
     var c = b.split(' ').map(Number);
@@ -92,7 +93,7 @@ async function loadSchedule() {
 }
 
 async function loadScheduleCheckbox(ch,day,e) {
-    u="/schedulerset?ch="+ch+"&day="+day+"&slot="+e.value
+    u="/schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value
     var a = await fetch(u,{method:'get'})
     var b = await a.text()
     e.checked = parseInt(b)
@@ -108,7 +109,7 @@ function loadSchedule_old() {
 }
 
 async function saveScheduleCheckbox(ch,day,e) {
-    var u = "/schedulerset?ch="+ch+"&day="+day+"&slot="+e.value+"&state=";
+    var u = "/schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value+"&state=";
     if(e.checked){ u+="1"; } else {u+="0"};
     return await fetch(u,{method:'get'})
 }
@@ -361,6 +362,21 @@ static void warmup_set (AsyncWebServerRequest *request) {
                 y+=" to ";
                 y+=x;
                 response = request->beginResponse(200, "text/plain", y);
+
+                if (LittleFS.begin()) {
+                    String s = "/warmup.";
+                    s += ch;
+                    fs::File f = LittleFS.open(s, "w");
+                    if (f) {
+                        f.print(x);
+                        f.close();
+                    } else {
+                        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open %s",s.c_str());
+                    }
+                    LittleFS.end();
+                } else {
+                    syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+                }
             } else {
                 y = "Base warmup time for ";
                 y+=channels[ch].getName();
@@ -399,7 +415,7 @@ void Scheduler::readConfig()
         mBaseWarmup = y.toInt();
         f.close();
     } else {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open warmup file");
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open warmup file %s",s.c_str());
     }
 
     // read saved schedule
@@ -430,7 +446,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
     struct tm w2;
     time_t now = time(NULL);
     time_t starttime = now;
-    time_t c = 0; // number of 15 minute intervals
+    time_t c = 0;
 
     // if anything between now and warmup is scheduled on then we should go on
     // if (starttime + warmup) is scheduled on
@@ -452,9 +468,14 @@ void Scheduler::checkSchedule(int d, int h, int m)
         }
         starttime += c;
         t2 -= c;
-    } while (t2 > 0);
+        // go round the loop again until we reach the end of the
+        // warmup cycle, and then one more pass.
+        // t2 > 0 means we have not reached the end of the warmup interval
+        // on the pass where t2 goes to 0, c will be >0
+        // then after that c goes to 0
+    } while ((t2 > 0) || (c > 0));
 
-    c = 0;
+    c = 0; // number of 15 minute intervals
     // did we find a start slot within the warmup window?
     // if we did, work out how long that interval is for
     // TODO there's a bug here if schedule says on and off and on
@@ -462,6 +483,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
     // limit on c is to prevent infinite loop if everything is on
     while ((mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15] != 0) &&
            (c < 672)) {
+
         // calculate end time
         ++c;
 
@@ -482,11 +504,18 @@ void Scheduler::checkSchedule(int d, int h, int m)
 
     // schedule says we need to turn on
     if (c > 0) {
-        // set timer
-        t += (c * 15 * 60);
-        // round down in case we are already in the specified slot
-        // (e.g. boot time or if warmup time is not a multiple of 15 minutes)
-        t -= (now % 900);
+        // set runtime
+        t = (c * 15 * 60);
+        if (starttime == now) {
+            // round down in case we are already in the specified slot
+            // (e.g. boot time or if warmup time is not a multiple of 15 minutes)
+            // only the case if we found an enabled slot in the first
+            // pass which means we are in the slot already
+            t -= (now % 900);
+        } else {
+            // add time from now to scheduled start
+            t += (starttime-now);
+        }
 
         syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
 
@@ -529,21 +558,15 @@ void Scheduler::saveChanges()
 
 static void scheduler_run(void *)
 {
-    time_t t,u;
+    time_t t,u,v;
     int i,j;
     int d,h,m;
     struct tm now;
     delay(5000);
     while(1) {
-        // sleep to start of next minute
-        t = time(NULL);
-        t = t%60;
-        t = 60-t;
-        delay(t*1000);
-
         // for each channel
         t = 0;
-        u = time(NULL);
+        v = u = time(NULL);
         localtime_r(&u,&now);
 
         for(i=0; i<num_heat_channels; ++i) {
@@ -576,6 +599,12 @@ static void scheduler_run(void *)
                 syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
             }
         }
+
+        // sleep to start of next minute
+        v = v%60;
+        v = 60-v;
+        delay(v*1000);
+
     }
 }
 
@@ -583,8 +612,6 @@ static const char * extractTimeslot(int d, const String & hm, int &h, int &m)
 {
     // validate inputs
     if (d < 0 || d > 6) { return "Invalid day"; }
-    // unix time is Sunday=0 but ui is Monday=0
-    d = (d+1)%7;
     // extract h
     h = hm.toInt();
     if (h < 0 || h>23) { return "Invalid hour"; }
