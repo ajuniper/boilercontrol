@@ -89,7 +89,18 @@ static String statuspage_processor(const String& var){
             s+="</td><td>";
             s+=String(channels[i].targetTemp());
             s+="</td><td>";
-            s+=String(channels[i].getScheduler().getBaseWarmup());
+            i = channels[i].getScheduler().getBaseWarmup();
+            if (i < 60) {
+                s+=String(i);
+                s+="s";
+            } else {
+                if (i >= 3600) {
+                    s+=String(int(i/3600));
+                    s+="h ";
+                }
+                s+=String(int(i/60)%60);
+                s+="m";
+            }
 
         } // end not inactive
         // actions
