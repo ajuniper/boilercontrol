@@ -287,6 +287,7 @@ void loop() {
         }
 
         // set system outputs - via task to deal with mains sync
+        // TODO should setting outputs be synchronised with setting outputs
         xTaskNotifyGive( outputtask_handle );
     }
 
