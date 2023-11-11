@@ -100,6 +100,8 @@ void HeatChannel::adjustTimer(int dt) {
         case 0:
             // turn off
             if (m_endtime != 0) {
+                // channel is running so set end time to
+                // a moment ago
                 m_endtime = time(NULL)-1;
             } else if (m_cooldown_time != 0) {
                 // channel is already off, cancel cooldown
