@@ -32,7 +32,7 @@ static String statuspage_processor(const String& var){
   String s;
   char ch;
   if(var == "STATUS"){
-    int i;
+    int i,j;
     unsigned long t;
     s+="<p><table border=\"1\">";
     s+="<tr><th align=\"left\">Name</th><th align=\"left\">Timer</th><th align=\"left\">Target<br/>Temp</th><th align=\"left\">Base<br/>Warmup</th><th align=\"left\">Actions</th><th align=\"left\">State</th></tr>";
@@ -89,16 +89,16 @@ static String statuspage_processor(const String& var){
             s+="</td><td>";
             s+=String(channels[i].targetTemp());
             s+="</td><td>";
-            i = channels[i].getScheduler().getBaseWarmup();
-            if (i < 60) {
-                s+=String(i);
+            j = channels[i].getScheduler().getBaseWarmup();
+            if (j < 60) {
+                s+=String(j);
                 s+="s";
             } else {
-                if (i >= 3600) {
-                    s+=String(int(i/3600));
+                if (j >= 3600) {
+                    s+=String(int(j/3600));
                     s+="h ";
                 }
-                s+=String(int(i/60)%60);
+                s+=String(int(j/60)%60);
                 s+="m";
             }
 
@@ -106,18 +106,18 @@ static String statuspage_processor(const String& var){
         // actions
         s+="</td><td>";
         if (!channels[i].getActive()) {
-            s+="<a href=\"/heat?ch=";
+            s+="<a href=\"heat?ch=";
             s+=ch;
             s+="&a=1\">Activate</A>";
             // empty cell for output states
             s += "</td><td>";
         } else {
-            s+="<a href=\"/heat?ch="; s+=ch ; s+="&q=3600\">+1h</a> ";
-            s+="<a href=\"/heat?ch="; s+=ch ; s+="&q=7200\">+2h</a> ";
-            s+="<a href=\"/heat?ch="; s+=ch ; s+="&q=10800\">+3h</a> ";
-            s+="<a href=\"/heat?ch="; s+=ch ; s+="&q=-1\">On</a> ";
-            s+="<a href=\"/heat?ch="; s+=ch ; s+="&q=0\">Off</a> ";
-            s+="<a href=\"/heat?ch="; s+=ch ; s+="&a=0\">Disable</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600\">+1h</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200\">+2h</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800\">+3h</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1\">On</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=0\">Off</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&a=0\">Disable</a> ";
 
             // output states
             s += "</td><td>";
@@ -171,7 +171,7 @@ static String statuspage_processor(const String& var){
 
 static void redirect_to_home (AsyncWebServerRequest *request) {
   AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "OK");
-  response->addHeader("Location","/boiler");
+  response->addHeader("Location","boiler");
   request->send(response);
 }
 
@@ -235,7 +235,7 @@ static void web_set_target (AsyncWebServerRequest *request) {
 
 void webserver_setup() {
     // Route web pages
-    WS_init("/boiler");
+    WS_init("boiler");
     server.on("/boiler", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send_P(200, "text/html", statuspage, statuspage_processor);
     });
