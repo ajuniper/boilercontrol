@@ -26,6 +26,7 @@ static const char statuspage[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
+static time_t starttime;
 static void getInterval(String &s, time_t d)
 {
     // report 00h 00m or 00m 00s
@@ -164,6 +165,8 @@ static String statuspage_processor(const String& var){
     char dt[dt_len];
     ssize_t l = strftime(dt,dt_len,"%F %T",&timeinfo);
     s += dt;
+    s += "</td></tr><tr><td>Uptime</td><td>";
+    getInterval(s,now-starttime);
     s += "</td></tr></table>";
   }
   return s;
@@ -241,4 +244,5 @@ void webserver_setup() {
     });
     server.on("/heat", HTTP_GET, web_set_heat);
     server.on("/targettemp", HTTP_GET, web_set_target);
+    starttime = time(NULL);
 }
