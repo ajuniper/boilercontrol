@@ -3,7 +3,6 @@ TEST
 
 FIX
 . add file system browser
-. changing schedule should force reevaluation
 . run heating hotter for some initial period
 
 TODO
@@ -76,3 +75,4 @@ link to scheduler from front page
 . sludge buster should not run if other channel active (should not leave channel on off/calls/satoff)
 . check uptime
 . sat output should record/report state even if no pin
+. changing schedule should force reevaluation

@@ -22,6 +22,9 @@
 #define SLUDGE_UPTIME (24*60*60*1000) // ms
 #endif
 
+// task to check scheduling
+static TaskHandle_t schedtask_handle = NULL;
+
 static const char schedpage[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -603,6 +606,7 @@ static void scheduler_run(void *)
 
             // check channel for pending save
             u = ch.getScheduler().lastChange();
+
             // pick the newest pending save
             if ((u != 0) && (u > t)) { t = u; }
 
@@ -629,8 +633,13 @@ static void scheduler_run(void *)
         // sleep to start of next minute
         v = v%60;
         v = 60-v;
-        delay(v*1000);
-
+        //delay(v*1000);
+        j = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS( v*1000) );
+        if (j > 0) {
+            // somebody changed something
+            // wait a couple of seconds and run scheduler
+            delay(5000);
+        }
     }
 }
 
@@ -669,6 +678,7 @@ const char * Scheduler::set(int d, const String & hm, bool state)
     if (ret != NULL) { return ret; }
     mSchedule[d][h][m] = state;
     mLastChange = time(NULL);
+    xTaskNotifyGive( schedtask_handle );
     return NULL;
 }
 
@@ -683,5 +693,5 @@ void scheduler_setup() {
     });
     server.on("/schedulerset", HTTP_GET, sched_set);
     server.on("/warmup", HTTP_GET, warmup_set);
-    xTaskCreate(scheduler_run, "scheduler", 10000, NULL, 1, NULL);   
+    xTaskCreate(scheduler_run, "scheduler", 10000, NULL, 1, &schedtask_handle);
 }
