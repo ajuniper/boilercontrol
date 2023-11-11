@@ -396,7 +396,8 @@ static void warmup_set (AsyncWebServerRequest *request) {
 Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
     mChannel(aChannel),
     mBaseWarmup(aSetback),
-    mLastChange(0)
+    mLastChange(0),
+    mLastSchedule(0)
 {
     memset(mSchedule, 0, sizeof(mSchedule));
 }
@@ -447,6 +448,11 @@ void Scheduler::checkSchedule(int d, int h, int m)
     time_t now = time(NULL);
     time_t starttime = now;
     time_t c = 0;
+
+    // do not keep thinking until any current cycle is completed
+    if (mLastSchedule > now) {
+        return;
+    }
 
     // if anything between now and warmup is scheduled on then we should go on
     // if (starttime + warmup) is scheduled on
@@ -517,10 +523,28 @@ void Scheduler::checkSchedule(int d, int h, int m)
             t += (starttime-now);
         }
 
-        syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
+        // remember the expiry time for when we would turn the channel off
+        // this gates us trying to turn the channel back on again
+        mLastSchedule = t + now;
 
         // tell the system to do its stuff
-        mChannel.adjustTimer(t);
+        c = mChannel.getTimer();
+        if (c > 0) {
+            // channel already has some run time, adjust our delta
+            // to take that into account
+            if ((c - now) > t) {
+                // channel already has more runtime than we were to add
+                // so we do nothing
+                t = 0;
+            } else {
+                t -= (c - now);
+            }
+        }
+        // take action if required
+        if (t > 0) {
+            syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
+            mChannel.adjustTimer(t);
+        }
 
     } else if (((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
                ((now - mChannel.lastTime()) > CIRCULATION_TIME)) {
@@ -581,7 +605,7 @@ static void scheduler_run(void *)
             if ((u != 0) && (u > t)) { t = u; }
 
             // skip if already running
-            if (ch.getTimer() > 0) { continue; }
+            //if (ch.getTimer() > 0) { continue; }
 
             // process this channel
             ch.getScheduler().checkSchedule(now.tm_wday,now.tm_hour,now.tm_min);

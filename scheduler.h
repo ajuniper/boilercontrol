@@ -10,6 +10,7 @@ class Scheduler {
         HeatChannel & mChannel;
         time_t mBaseWarmup;
         time_t mLastChange;
+        time_t mLastSchedule;
         unsigned char mSchedule[7][24][4];
     public:
         Scheduler (HeatChannel & aChannel, int setback);
