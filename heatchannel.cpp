@@ -148,8 +148,10 @@ void HeatChannel::setOutput(bool state) {
     }
 }
 void HeatChannel::setSatisfied(bool state) {
-    if (m_enabled == true && m_pin_zv_satisfied > -1) {
-        digitalWrite(m_pin_zv_satisfied,state?RELAY_ON:RELAY_OFF);
+    if (m_enabled == true) {
+        if (m_pin_zv_satisfied > -1) {
+            digitalWrite(m_pin_zv_satisfied,state?RELAY_ON:RELAY_OFF);
+        }
         if (m_zv_satisfied_output != state) {
             syslog.logf(LOG_DAEMON | LOG_INFO, "%s satisfied set to %s",m_name,state?"on":"off");
         }
