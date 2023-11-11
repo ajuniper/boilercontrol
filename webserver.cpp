@@ -26,13 +26,33 @@ static const char statuspage[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
+static void getInterval(String &s, time_t d)
+{
+    // report 00h 00m or 00m 00s
+    // hours only if >= 1hr
+    if (d >= 3600) {
+        s += String(int(d/3600)) + "h ";
+    }
+    // minutes if >= 1 minute
+    if (d >= 60) {
+        s += String(int((d%3600)/60)) + "m";
+    }
+    // seconds only if less than 1hr
+    if (d < 3600) {
+        if (d >= 60) {
+            s += " ";
+        }
+        s += String(d%60) + "s";
+    }
+}
+
 // Replaces placeholder with button section in your web page
 static String statuspage_processor(const String& var){
   time_t now = time(NULL);
   String s;
   char ch;
   if(var == "STATUS"){
-    int i,j;
+    int i;
     unsigned long t;
     s+="<p><table border=\"1\">";
     s+="<tr><th align=\"left\">Name</th><th align=\"left\">Timer</th><th align=\"left\">Target<br/>Temp</th><th align=\"left\">Base<br/>Warmup</th><th align=\"left\">Actions</th><th align=\"left\">State</th></tr>";
@@ -66,43 +86,23 @@ static String statuspage_processor(const String& var){
                             break;
                         default:
                             s += " (cooling ";
-                            s+= String((t-now)/60);
+                            getInterval(s,t-now);
                             s+=")";
                     }
                     break;
                 case -1:
                     s += "On";
                     break;
-                default: {
-                    unsigned long d = t-now;
-                    if (d < 60) {
-                        s += String(d) + "s";
-                    } else {
-                        if (d > 3600) {
-                            s += String(int(d/3600)) + "h ";
-                        }
-                        s += String(int((d%3600)/60)) + "m";
-                    }
-                }
+                default:
+                    getInterval(s,t-now);
             }
             // target temperature
             s+="</td><td>";
             s+=String(channels[i].targetTemp());
-            s+="</td><td>";
-            j = channels[i].getScheduler().getBaseWarmup();
-            if (j < 60) {
-                s+=String(j);
-                s+="s";
-            } else {
-                if (j >= 3600) {
-                    s+=String(int(j/3600));
-                    s+="h ";
-                }
-                s+=String(int(j/60)%60);
-                s+="m";
-            }
-
+            s+="C</td><td>";
+            getInterval(s,channels[i].getScheduler().getBaseWarmup());
         } // end not inactive
+
         // actions
         s+="</td><td>";
         if (!channels[i].getActive()) {
