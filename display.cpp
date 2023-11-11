@@ -131,8 +131,9 @@ static void update_display() {
 
     int i;
     for(i=0; i<num_heat_channels; ++i) {
-        time_t t = channels[i].getTimer();
-        if ((t > 0) && (t < time(NULL))) { channels[i].adjustTimer(0); }
+        // what was this code for and is it still required?
+        //time_t t = channels[i].getTimer();
+        //if ((t > 0) && (t < time(NULL))) { channels[i].adjustTimer(0); }
         channels[i].updateDisplay();
     }
 }
