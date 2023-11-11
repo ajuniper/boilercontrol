@@ -1,8 +1,9 @@
 TEST
 . check display updates as expected on turn-off
+. sludge buster should not run if other channel active (should not leave channel on off/calls/satoff)
 
 FIX
-. sludge buster should not run if other channel active
+. sat output should record/report state even if no pin
 . add file system browser
 . changing schedule should force reevaluation
 . run heating hotter for some initial period
@@ -71,3 +72,4 @@ link to scheduler from front page
     sludge buster will start @5 mins
     start manual timer to overlap with sludge buster
 . check scheduler behaviour if channel ready running ( for < or > time)
+. web page runtime/cooldown time should be hh:mm:ss not just /60
