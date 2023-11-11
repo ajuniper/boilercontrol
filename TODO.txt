@@ -1,13 +1,14 @@
 TEST
-scheduler
-    correctly detect heating if turn on <warmup before schedule
-    scheduler warmup set
+. run scheduler at reboot
+. stop button should inhibit scheduler until end of current cycle
+. check scheduler behaviour if channel ready running ( for < or > time)
+. check display updates as expected on turn-off
 
 FIX
+. why does web say heating satisfied + satisfiedON?
+. sludge buster should not run if other channel active
 . add file system browser
-. run scheduler at reboot
 . changing schedule should force reevaluation
-. stop button should inhibit scheduler until end of current cycle
 . run heating hotter for some initial period
 
 TODO
@@ -64,3 +65,5 @@ link to scheduler from front page
     URL to adjust base warmup
     scheduler does not account for time slot already partially passed
     summertime heating cycling (30s every 10 mins)
+    scheduler warmup set
+    correctly detect heating if turn on <warmup before schedule
