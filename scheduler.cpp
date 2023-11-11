@@ -74,7 +74,7 @@ var selectedSchedule = 0;
 
 async function loadSchedule() {
     // unix time is Sunday=0 but ui is Monday=0/Sunday=6
-    var u = "/schedulerset?ch="+selectedCh+"&day="+((selectedDay+1)%%7)
+    var u = "schedulerset?ch="+selectedCh+"&day="+((selectedDay+1)%%7)
     var a = await fetch(u,{method:'get'})
     var b = await a.text()
     var c = b.split(' ').map(Number);
@@ -93,7 +93,7 @@ async function loadSchedule() {
 }
 
 async function loadScheduleCheckbox(ch,day,e) {
-    u="/schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value
+    u="schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value
     var a = await fetch(u,{method:'get'})
     var b = await a.text()
     e.checked = parseInt(b)
@@ -109,7 +109,7 @@ function loadSchedule_old() {
 }
 
 async function saveScheduleCheckbox(ch,day,e) {
-    var u = "/schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value+"&state=";
+    var u = "schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value+"&state=";
     if(e.checked){ u+="1"; } else {u+="0"};
     return await fetch(u,{method:'get'})
 }
@@ -449,7 +449,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
     time_t starttime = now;
     time_t c = 0;
 
-    // do not keep thinking until any current cycle is completed
+    // do not keep calculating until any current cycle is completed
     if (mLastSchedule > now) {
         return;
     }
@@ -546,7 +546,8 @@ void Scheduler::checkSchedule(int d, int h, int m)
             mChannel.adjustTimer(t);
         }
 
-    } else if (((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
+    } else if ((mChannel.getTimer() <= now) &&
+               ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
                ((now - mChannel.lastTime()) > CIRCULATION_TIME)) {
         // if >24h since last run
         // set timer for (now-1) / -2
@@ -574,6 +575,7 @@ void Scheduler::saveChanges()
             syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to write all bytes");
         }
         f.close();
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Saved %s schedule",mChannel.getName());
     } else {
         syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open schedule file for writing");
     }
