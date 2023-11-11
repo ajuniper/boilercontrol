@@ -218,10 +218,16 @@ void loop() {
             }
         }
         if (calling) {
+            // something is calling for heat
 
             // action the satisfied relays
+            // if we get to this loop then something IS calling for fire
+            // cool down is not possible if something is calling for fire
             for (i=0; i<num_heat_channels; ++i) {
-                channels[i].setSatisfied(channels[i].isSatisfied());
+                // we must set satisfied to indicate to not send heat to this channel
+                // if the channel is satisfied or this channel is not asking for heat
+                // (which can include cooldown too)
+                channels[i].setSatisfied((!channels[i].canFire()) || channels[i].isSatisfied());
             }
             // TODO delay needed?
 
@@ -247,6 +253,7 @@ void loop() {
                     }
                 }
             }
+
             if (calling) {
                 // something is asking for cooldown
                 // this ensures other ZVs are closed
