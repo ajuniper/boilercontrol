@@ -1,11 +1,7 @@
 TEST
-. run scheduler at reboot
-. stop button should inhibit scheduler until end of current cycle
-. check scheduler behaviour if channel ready running ( for < or > time)
 . check display updates as expected on turn-off
 
 FIX
-. why does web say heating satisfied + satisfiedON?
 . sludge buster should not run if other channel active
 . add file system browser
 . changing schedule should force reevaluation
@@ -67,3 +63,11 @@ link to scheduler from front page
     summertime heating cycling (30s every 10 mins)
     scheduler warmup set
     correctly detect heating if turn on <warmup before schedule
+. why does web say heating satisfied + satisfiedON?
+. web links ok after becoming relative
+. stop button should inhibit scheduler until end of current cycle
+. run scheduler at reboot
+. sludge buster should not run if this channel active
+    sludge buster will start @5 mins
+    start manual timer to overlap with sludge buster
+. check scheduler behaviour if channel ready running ( for < or > time)
