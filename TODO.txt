@@ -1,9 +1,7 @@
 TEST
 . check display updates as expected on turn-off
-. sludge buster should not run if other channel active (should not leave channel on off/calls/satoff)
 
 FIX
-. sat output should record/report state even if no pin
 . add file system browser
 . changing schedule should force reevaluation
 . run heating hotter for some initial period
@@ -16,13 +14,15 @@ TODO
 . boiler cycling based on outside temp
   curl 'https://api.open-meteo.com/v1/forecast?latitude=51.75413&longitude=-1.124867&hourly=temperature_2m&timezone=GMT&timeformat=unixtime&past_days=0&forecast_days=2' |jq -r '.hourly.temperature_2m[]'
   also base on return temp
-. persist on-until time in rtc/flash (scheduler fixes)
 . (outside) temp setback / weather query
 . auto hotspot if no wifi
 . mqtt
 . proper web page
 . ntp, syslog targets from dhcp
 . watchdog timer
+
+IGNORE wnf
+. persist on-until time in rtc/flash (scheduler fixes)
 
 TESTED
 rtc integration
@@ -73,3 +73,6 @@ link to scheduler from front page
     start manual timer to overlap with sludge buster
 . check scheduler behaviour if channel ready running ( for < or > time)
 . web page runtime/cooldown time should be hh:mm:ss not just /60
+. sludge buster should not run if other channel active (should not leave channel on off/calls/satoff)
+. check uptime
+. sat output should record/report state even if no pin
