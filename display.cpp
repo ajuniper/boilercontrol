@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "projectconfig.h"
+#include "pinconfig.h"
 #include "display.h"
 #include <WiFi.h>
 
@@ -142,7 +143,7 @@ static void update_display() {
 static TaskHandle_t displaytask_handle = NULL;
 
 static void IRAM_ATTR display_irq() {
-    detachInterrupt(digitalPinToInterrupt(18));
+    detachInterrupt(digitalPinToInterrupt(PIN_TOUCH_IRQ));
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     vTaskNotifyGiveFromISR( displaytask_handle, &xHigherPriorityTaskWoken );
     portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
@@ -155,7 +156,7 @@ static void wait_for_touch() {
     // display off
     ledcWrite(0, 0);
     // enable IRQ
-    attachInterrupt(digitalPinToInterrupt(18), display_irq, FALLING);
+    attachInterrupt(digitalPinToInterrupt(PIN_TOUCH_IRQ), display_irq, FALLING);
     // wait for signal
     uint32_t n = 0;
     while (n == 0) {
@@ -215,7 +216,7 @@ static void displaytask(void*) {
 void display_init() {
 
     // display IRQ is an input
-    pinMode(18, INPUT_PULLUP);
+    pinMode(PIN_TOUCH_IRQ, INPUT_PULLUP);
 
     // set up display
     tft.init();
@@ -229,7 +230,7 @@ void display_init() {
     // PWM channel freq resolution
     ledcSetup(0, 5000, 8);
     // add pin to PWM channel
-    ledcAttachPin(21,0);
+    ledcAttachPin(PIN_DISPLAY_LED,0);
     // default brightness
     ledcWrite(0, display_brightness);
 

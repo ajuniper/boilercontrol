@@ -4,7 +4,6 @@
 #ifndef __display_config_h__
 #define __display_config_h__
 
-
 #include "time.h"
 
 #define touch_delay 25

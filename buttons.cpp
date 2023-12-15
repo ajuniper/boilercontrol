@@ -3,6 +3,7 @@
 //////////////////////////////////////////////////////////////////
 //
 // button classes
+#include "pinconfig.h"
 #include "buttons.h"
 #include "display.h"
 #include "heatchannel.h"
