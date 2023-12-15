@@ -31,9 +31,9 @@ static const char schedpage[] PROGMEM = R"rawliteral(
 <title>Boiler Scheduling</title>
 <style>
 .schedule {
-    width: 60px;
+    width: 122px;
     display: grid;
-    grid-gap: 0px;
+    grid-gap: 8px;
     grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
 }
 .tab {
@@ -64,16 +64,37 @@ static const char schedpage[] PROGMEM = R"rawliteral(
     border-top: none;
 }
 .timeslot {
-    padding: 3px 3px;
+    padding: 1px 1px;
     font-size: 12px;
     font-family: sans-serif;
     text-align: right;
+}
+.timebox {
+    border-style: solid;
+    border-width: thin;
+    border-collapse: separate;
+}
+.cold{
+  background-color: white;
+}
+
+.warm{
+  background-color: orange;
+}
+
+.hot{
+  background-color: red;
 }
 </style>
 <script>
 var selectedDay = 0;
 var selectedCh = 0;
 var selectedSchedule = 0;
+// holds the currently displayed schedule
+var currschedule=[];
+// gives the click sequence for each channel
+// TODO load dynamically
+var possiblesettings=[ [ "cold", "hot" ], [ "cold","warm","hot" ] ];
 
 async function loadSchedule() {
     // unix time is Sunday=0 but ui is Monday=0/Sunday=6
@@ -85,39 +106,29 @@ async function loadSchedule() {
         console.log("Did not get 96 settings for the day, got "+String(c.length));
         return;
     }
-    var sch = document.getElementById(selectedSchedule).getElementsByTagName("input");
+    var sch = document.getElementById(selectedSchedule).getElementsByClassName("timebox");
     var i = 0;
     for (s in sch) {
-        if (sch[s].value) {
-            sch[s].checked = c[i];
+        if (typeof(sch[s]) == "object") {
+            sch[s].classList.remove(possiblesettings[selectedCh][sch[s].getAttribute("data-temp")]);
+            sch[s].setAttribute("data-temp",c[i]);
+            sch[s].classList.add(possiblesettings[selectedCh][c[i]]);
             ++i;
         }
     }
 }
 
-async function loadScheduleCheckbox(ch,day,e) {
-    u="schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value
-    var a = await fetch(u,{method:'get'})
-    var b = await a.text()
-    e.checked = parseInt(b)
-}
-
-function loadSchedule_old() {
-    let sch = document.getElementById(selectedSchedule).getElementsByTagName("input");
-    for (s in sch) {
-        if (sch[s].value) {
-            loadScheduleCheckbox(selectedCh, selectedDay, sch[s]);
-        }
-    }
-}
-
 async function saveScheduleCheckbox(ch,day,e) {
-    var u = "schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.value+"&state=";
-    if(e.checked){ u+="1"; } else {u+="0"};
+    var u = "schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.id+"&state="+e.getAttribute("data-temp");
     return await fetch(u,{method:'get'})
 }
 
 async function toggleCheckbox(element) {
+    var st = element.getAttribute("data-temp");
+    element.classList.remove(possiblesettings[selectedCh][st]);
+    st = (parseInt(st) + 1) %% possiblesettings[selectedCh].length;
+    element.setAttribute("data-temp",st);
+    element.classList.add(possiblesettings[selectedCh][st]);
     return saveScheduleCheckbox(selectedCh,selectedDay,element);
 }
 
@@ -169,8 +180,10 @@ async function copyForwards() {
     t = t.getElementsByTagName("input");
 
     for(v in f) {
-        if (t[v].checked != f[v].checked) {
-            t[v].checked = f[v].checked;
+        tt = t[v].getAttribute("data-temp");
+        ff = f[v].getAttribute("data-temp");
+        if (tt != ff) {
+            t[v].setAttribute("data-temp",ff);
             await toggleCheckbox(t[v]);
         }
     }
@@ -195,7 +208,7 @@ for(i=0;i<days.length;++i) {
 }
 prototype = document.createElement("div");
 prototype.setAttribute("class","daycontent");
-var pr2 = document.createElement("form");
+var pr2 = document.createElement("div");
 pr2.setAttribute("class","schedule");
 prototype.appendChild(pr2);
 for(i=0;i<24;++i) {
@@ -206,15 +219,14 @@ for(i=0;i<24;++i) {
     pr2.appendChild(l);
     for (j=0; j<60; j+=15) {
         l = document.createElement("label");
-        c = document.createElement("input");
-        c.setAttribute("type","checkbox");
+        l.setAttribute("data-temp",0);
+        l.setAttribute("class","timebox cold");
+        l.setAttribute("onclick", "toggleCheckbox(this)");
         if (j==0){
-            c.setAttribute("value",""+i+":00");
+            l.setAttribute("id",""+i+":00");
         } else {
-            c.setAttribute("value",""+i+":"+j);
+            l.setAttribute("id",""+i+":"+j);
         }
-        c.setAttribute("onclick", "toggleCheckbox(this)");
-        l.appendChild(c);
         pr2.appendChild(l);
     }
 }
@@ -272,7 +284,7 @@ static void sched_set(AsyncWebServerRequest *request) {
     String x,y;
     String z("Invalid Parameters");
     int rc = 400;
-    // GET /sched_set?ch=X&day=D&slot=H:MM&state=01
+    // GET /sched_set?ch=X&day=D&slot=H:MM&state=012
     // GET /sched_set?ch=X&day=D&slot=H:MM
     // GET /sched_set?ch=X&day=D
     // d=0-6 M-S
@@ -297,18 +309,15 @@ static void sched_set(AsyncWebServerRequest *request) {
                 int m;
                 for (h=0; h<24; ++h) {
                     for (m=0; m<4; ++m) {
-                        if (channels[ch].getScheduler().get(j,h,m)) {
-                            z += "1 ";
-                        } else {
-                            z += "0 ";
-                        }
+                        z += String(channels[ch].getScheduler().get(j,h,m));
+                        z += " ";
                     }
                 }
 
             } else if (!request->hasParam("state")) {
                 // serve current state of scheduler slot
                 rc = 200;
-                bool i = false;
+                unsigned char i = 0;
                 if ((err = channels[ch].getScheduler().get(j,request->getParam("slot")->value(),i)) == NULL) {
                     z = String(i);
                 } else {
@@ -318,19 +327,16 @@ static void sched_set(AsyncWebServerRequest *request) {
             } else {
                 // setting the specific slot
                 x = request->getParam("state")->value();
-                int i = x.toInt();
+                unsigned char i = x.toInt();
                 if ((err = channels[ch].getScheduler().set(j,request->getParam("slot")->value(),i)) == NULL) {
                     z = "Channel ";
                     z+=channels[ch].getName();
                     z+=" day ";
                     z+=String(j);
                     z+=" slot ";
+                    z+=request->getParam("slot")->value();
+                    z+=" set to ";
                     z+=x;
-                    if (i==0) {
-                        z+=" cleared";
-                    } else {
-                        z+=" set";
-                    }
                     rc = 200;
                 } else {
                     z = err;
@@ -660,7 +666,7 @@ static const char * extractTimeslot(int d, const String & hm, int &h, int &m)
     return NULL;
 }
 
-const char * Scheduler::get(int d, const String & hm, bool & state)
+const char * Scheduler::get(int d, const String & hm, unsigned char & state)
 {
     int h;
     int m;
@@ -670,7 +676,7 @@ const char * Scheduler::get(int d, const String & hm, bool & state)
     return NULL;
 }
 
-const char * Scheduler::set(int d, const String & hm, bool state)
+const char * Scheduler::set(int d, const String & hm, unsigned char state)
 {
     int h;
     int m;

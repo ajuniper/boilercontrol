@@ -15,8 +15,8 @@ class Scheduler {
     public:
         Scheduler (HeatChannel & aChannel, int setback);
         // returns null if all ok, error string otherwise
-        const char * set(int d, const String & hm, bool state);
-        const char * get(int d, const String & hm, bool &i);
+        const char * set(int d, const String & hm, unsigned char state);
+        const char * get(int d, const String & hm, unsigned char &i);
         unsigned char get(int d, int h, int m)
         {
             return mSchedule[d][h][m];
