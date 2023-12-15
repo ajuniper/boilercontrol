@@ -10,10 +10,6 @@ More description, photos and screenshots coming soon.
 All requests are `GET` requests (yuk!)
 
 * `/` and `/boiler` gives current status and management controls
-* `/temperatures` reports current DS18B20 readings
-* `/api?id=XXX` reports current temperature for sensor named `XXX`
-* `/remap?id=XXX&to=YYY` sets name of sensor `XXX` to `YYY` (where `XXX` is typically sensor MAC address)
-* `/fake?id=XXX&temp=t.tt` creates fake sensor `XXX` with value `t.tt` (used for testing)
 * `/scheduler` gives html page for setting schedules
 * `/schedulerset?ch=X&day=D&slot=H:MM&state=01` for updating individual slots in schedules, day = 0-6=M-S, state = 0 or 1
 * `/schedulerset?ch=X&day=D&slot=H:MM` retrieve given schedule slot
@@ -23,9 +19,18 @@ All requests are `GET` requests (yuk!)
 * `/warmup?ch=N&t=X` set base warmup time for channel N to X seconds
 * `/targettemp?ch=N` reports current target temperature for channel
 * `/targettemp?ch=N&temp=X` sets target temperature for channel
+
+Provided by the updater library:
 * `/update` gives page for doing OTA updates
 * `/update` use __POST__ request with body containing new firmware.bin
 * `/reboot` reboots the system
+
+Provided by tempreporter library:
+* `/temperatures` reports current DS18B20 readings
+* `/api?id=XXX` reports current temperature for sensor named `XXX`
+* `/remap?id=XXX&to=YYY` sets name of sensor `XXX` to `YYY` (where `XXX` is typically sensor MAC address)
+* `/fake?id=XXX&temp=t.tt` creates fake sensor `XXX` with value `t.tt` (used for testing)
+* `/pin?id=(ds18b20|dht11)[&pin=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
 
 ## LittleFS filesystem files
 
