@@ -7,8 +7,8 @@
 #include "scheduler.h"
 #include "heatchannel.h"
 #include <time.h>
-#include <LittleFS.h>
 #include <mysyslog.h>
+#include "myconfig.h"
 
 #ifdef SHORT_TIMES
 // max time before running the pump for a short while
@@ -372,19 +372,10 @@ static void warmup_set (AsyncWebServerRequest *request) {
                 y+=x;
                 response = request->beginResponse(200, "text/plain", y);
 
-                if (LittleFS.begin()) {
-                    String s = "/warmup.";
-                    s += ch;
-                    fs::File f = LittleFS.open(s, "w");
-                    if (f) {
-                        f.print(x);
-                        f.close();
-                    } else {
-                        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open %s",s.c_str());
-                    }
-                    LittleFS.end();
-                } else {
-                    syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+                String s = "warmup.";
+                s += ch;
+                if (prefs.putInt(s.c_str(), i) != 4) {
+                    syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to save %s",s.c_str());
                 }
             } else {
                 y = "Base warmup time for ";
@@ -414,32 +405,15 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
 void Scheduler::readConfig()
 {
     // read saved setback config
-    String s = "/warmup.";
+    String s = "warmup.";
     s+=mChannel.getId();
-    fs::File f = LittleFS.open(s, "r");
-    if (f) {
-        String y;
-        while (f.available()) {
-            y = f.readString();
-        }
-        mBaseWarmup = y.toInt();
-        f.close();
-    } else {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open warmup file %s",s.c_str());
-    }
+    mBaseWarmup = prefs.getInt(s.c_str(), mBaseWarmup);
 
     // read saved schedule
-    s="/sched.";
+    s="sched.";
     s+=mChannel.getId();
-    f = LittleFS.open(s, "r");
-    if (f) {
-        int r = f.read((unsigned char *)mSchedule,sizeof(mSchedule));
-        if (r != sizeof(mSchedule)) {
-            syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to read all bytes");
-        }
-        f.close();
-    } else {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open schedule file");
+    if (prefs.getBytes(s.c_str(), (unsigned char *)mSchedule,sizeof(mSchedule)) != sizeof(mSchedule)) {
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to read %s",s.c_str());
     }
 }
 
@@ -577,16 +551,8 @@ void Scheduler::saveChanges()
     if (mLastChange == 0) { return; }
     String s="/sched.";
     s+=mChannel.getId();
-    fs::File f = LittleFS.open(s, "w");
-    if (f) {
-        int written = f.write((const unsigned char *)mSchedule,sizeof(mSchedule));
-        if (written != sizeof(mSchedule)) {
-            syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to write all bytes");
-        }
-        f.close();
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Saved %s schedule",mChannel.getName());
-    } else {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open schedule file for writing");
+    if (prefs.putBytes(s.c_str(), (unsigned char *)mSchedule,sizeof(mSchedule)) != sizeof(mSchedule)) {
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to write %s",s.c_str());
     }
     mLastChange = 0;
 }
@@ -626,13 +592,8 @@ static void scheduler_run(void *)
         // if pending save older than 10s then save changes
         u = time(NULL);
         if ((t > 0) && ((u-t) > 10)) {
-            if (LittleFS.begin()) {
-                for(i=0; i<num_heat_channels; ++i) {
-                    channels[i].getScheduler().saveChanges();
-                }
-                LittleFS.end();
-            } else {
-                syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+            for(i=0; i<num_heat_channels; ++i) {
+                channels[i].getScheduler().saveChanges();
             }
         }
 
@@ -689,7 +650,6 @@ const char * Scheduler::set(int d, const String & hm, unsigned char state)
 }
 
 void scheduler_setup() {
-    // called with LittleFS already running
     int i;
     for (i=0; i<num_heat_channels; ++i) {
         channels[i].getScheduler().readConfig();

@@ -7,7 +7,7 @@
 #include "heatchannel.h"
 #include "displayconfig.h"
 #include "display.h"
-#include <LittleFS.h>
+#include "myconfig.h"
 #include <ESPAsyncWebServer.h>
 
 #include <mysyslog.h>
@@ -214,28 +214,12 @@ bool HeatChannel::canCooldown() const {
 
 void HeatChannel::readConfig()
 {
-    String s = "/targettemp.";
+    String s = "targettemp.";
     s += m_id;
-    fs::File f = LittleFS.open(s, "r");
-    if (f) {
-        String y;
-        while (f.available()) {
-            y = f.readString();
-        }
-        m_target_temp = y.toInt();
-        f.close();
-    }
-    s = "/chactive.";
+    m_target_temp = prefs.getInt(s.c_str(), m_target_temp);
+    s = "chactive.";
     s += m_id;
-    f = LittleFS.open(s, "r");
-    if (f) {
-        String y;
-        while (f.available()) {
-            y = f.readString();
-        }
-        m_active = y.toInt();
-        f.close();
-    }
+    m_active = prefs.getBool(s.c_str(), m_active);
 }
 
 HeatChannel channels[] = {
@@ -297,16 +281,11 @@ static void input_watch(void *) {
 
 // channels initialiser
 void heatchannel_setup() {
-    if (LittleFS.begin()) {
-        int i;
-        for (i=0; i<num_heat_channels; ++i) {
-            channels[i].readConfig();
-        }
-        scheduler_setup();
-        LittleFS.end();
-    } else {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+    int i;
+    for (i=0; i<num_heat_channels; ++i) {
+        channels[i].readConfig();
     }
+    scheduler_setup();
     xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
 }
 
@@ -402,19 +381,10 @@ void HeatChannel::drawCountdown() const {
 
 void HeatChannel::setTargetTemp(int target) {
     m_target_temp = target;
-    if (LittleFS.begin()) {
-        String s = "/targettemp.";
-        s += m_id;
-        fs::File f = LittleFS.open(s, "w");
-        if (f) {
-            f.print(target);
-            f.close();
-        } else {
-            syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open %s",s.c_str());
-        }
-        LittleFS.end();
-    } else {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+    String s = "targettemp.";
+    s += m_id;
+    if (prefs.putInt(s.c_str(), target) != 4) {
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to set %s",s.c_str());
     }
 }
 
@@ -425,18 +395,9 @@ void HeatChannel::setActive(bool a) {
     }
     m_active = a;
     m_changed = true;
-    if (LittleFS.begin()) {
-        String s = "/chactive.";
-        s += m_id;
-        fs::File f = LittleFS.open(s, "w");
-        if (f) {
-            f.print(a);
-            f.close();
-        } else {
-            syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to open %s",s.c_str());
-        }
-        LittleFS.end();
-    } else {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to start littlefs");
+    String s = "chactive.";
+    s += m_id;
+    if (!prefs.putBool(s.c_str(), a)) {
+        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to set %s",s.c_str());
     }
 };
