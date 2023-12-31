@@ -11,7 +11,7 @@
 #include <tempreporter.h>
 #include <mywebserver.h>
 #include <webupdater.h>
-#include <LittleFS.h>
+#include <myconfig.h>
 
 // task to update outputs
 static TaskHandle_t outputtask_handle = NULL;
@@ -26,9 +26,6 @@ int target_temp = 0;
 #include <my_secrets.h>
 const char* ssid     = MY_WIFI_SSID;
 const char* password = MY_WIFI_PASSWORD;
-
-// syslog stuff
-const char * syslog_name = "boiler";
 
 // if we cycle the boiler off at its target temperature
 // then we can't start it again for this period
@@ -56,24 +53,12 @@ void setup() {
     // put your setup code here, to run once:
     // Serial port for debugging purposes
     Serial.begin(115200);
+    Serial.println("Starting...");
+    MyCfgInit();
+
     mytime_setup(MY_TIMEZONE, PIN_RTC_CLK, PIN_RTC_DATA, PIN_RTC_RST);
-
     WIFI_init("boiler");
-    const char * m = "filesystem opened";
-    if (!LittleFS.begin()) {
-        m = "filesystem begin failed, try format";
-        Serial.println(m);
-        syslog.logf(m);
-        if (!LittleFS.format()) {
-            m = "filesystem format failed";
-        } else if (!LittleFS.begin()) {
-            m = "second filesystem begin failed";
-        }
-    }
-    Serial.println(m);
-    syslog.logf(m);
-
-    LittleFS.end();
+    SyslogInit("boiler");
     xTaskCreate(output_task, "outputs", 10000, NULL, 1, &outputtask_handle);
     webserver_setup();
     tempsensors_init();
@@ -135,9 +120,9 @@ static void output_task (void *)
                 // boiler just went over temperature
                 if (boiler_cycle_time != 0) {
                     // boiler was already over temp and not cooled after 5 mins
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is still greater than target %dC",flow_temp,last_target_temp);
+                    syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is still greater than target %dC",flow_temp,last_target_temp);
                 } else {
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC",flow_temp,last_target_temp);
+                    syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC",flow_temp,last_target_temp);
                 }
                 // start a new cycle period
                 this_boiler = false;
@@ -151,7 +136,7 @@ static void output_task (void *)
                 o_boiler_state = OUTPUT_HEATING;
                 if (boiler_cycle_time != 0) {
                     // boiler just finished cycling
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Cycling boiler back on, temp now %dC",flow_temp);
+                    syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler back on, temp now %dC",flow_temp);
                     boiler_cycle_time = 0;
                 }
             }
@@ -167,7 +152,7 @@ static void output_task (void *)
         last_pump = o_pump_on;
         if (last_boiler != o_boiler_on) {
             if (o_boiler_on) {
-                syslog.logf(LOG_DAEMON | LOG_WARNING, "Turning boiler on, temp now %dC",tempsensors_get("boiler.flow"));
+                syslogf(LOG_DAEMON | LOG_WARNING, "Turning boiler on, temp now %dC",tempsensors_get("boiler.flow"));
             }
             last_boiler = o_boiler_on;
             boiler_cycle_time = 0;
@@ -191,7 +176,7 @@ void loop() {
     for(i=0; i<num_heat_channels; ++i) {
         if (channels[i].updateTimers(now,millinow)) {
             changed |= true;
-            syslog.logf(LOG_DAEMON|LOG_INFO,"%s triggered change",channels[i].getName());
+            syslogf(LOG_DAEMON|LOG_INFO,"%s triggered change",channels[i].getName());
         }
     }
 
@@ -205,7 +190,7 @@ void loop() {
         for (i=0; i<num_heat_channels; ++i) {
             if (channels[i].wantFire()) {
                 calling |= true;
-                syslog.logf(LOG_DAEMON|LOG_INFO,"%s is ready",channels[i].getName());
+                syslogf(LOG_DAEMON|LOG_INFO,"%s is ready",channels[i].getName());
                 if (channels[i].canFire()) {
                     // something is asking for heat
                     o_pump_on = true;
@@ -213,7 +198,7 @@ void loop() {
                     // boiler state is controlled from output handler
                     int t = channels[i].targetTemp();
                     if (t > target_temp) { target_temp = t; }
-                    syslog.logf(LOG_DAEMON | LOG_WARNING, "Run pump and boiler to %dC",target_temp);
+                    syslogf(LOG_DAEMON | LOG_WARNING, "Run pump and boiler to %dC",target_temp);
                 }
             }
         }
@@ -245,11 +230,11 @@ void loop() {
             for (i=0; i<num_heat_channels; ++i) {
                 if (channels[i].wantCooldown()) {
                     calling |= true;
-                    syslog.logf(LOG_DAEMON|LOG_INFO,"%s is ready for cooldown",channels[i].getName());
+                    syslogf(LOG_DAEMON|LOG_INFO,"%s is ready for cooldown",channels[i].getName());
                     if (channels[i].canCooldown()) {
                         o_pump_on = true;
                         o_pump_state = OUTPUT_COOLING;
-                        syslog.logf(LOG_DAEMON | LOG_WARNING, "Run pump for cooldown");
+                        syslogf(LOG_DAEMON | LOG_WARNING, "Run pump for cooldown");
                     }
                 }
             }
@@ -282,7 +267,7 @@ void loop() {
                     channels[i].setOutput(false);
                 }
 
-                syslog.logf(LOG_DAEMON | LOG_WARNING, "Pump and boiler off");
+                syslogf(LOG_DAEMON | LOG_WARNING, "Pump and boiler off");
             }
         }
 
