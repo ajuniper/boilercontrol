@@ -113,7 +113,7 @@ bool MainsDetect::updatepin(unsigned long a_millinow) {
         if (x != m_state) {
             // only action a change if it changed
             m_state = x;
-            syslog.logf(LOG_DAEMON | LOG_INFO, "%s %s %s",m_name1,m_name2,m_state?"set":"cleared");
+            syslogf(LOG_DAEMON | LOG_INFO, "%s %s %s",m_name1,m_name2,m_state?"set":"cleared");
             return true;
         }
     }
