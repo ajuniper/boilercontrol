@@ -107,9 +107,9 @@ static String statuspage_processor(const String& var){
         // actions
         s+="</td><td>";
         if (!channels[i].getActive()) {
-            s+="<a href=\"heat?ch=";
+            s+="<a href=\"config?name=active&id=";
             s+=ch;
-            s+="&a=1\">Activate</A>";
+            s+="&value=1\">Activate</A>";
             // empty cell for output states
             s += "</td><td>";
         } else {
@@ -118,7 +118,7 @@ static String statuspage_processor(const String& var){
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800\">+3h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1\">On</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=0\">Off</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&a=0\">Disable</a> ";
+            s+="<a href=\"config?name=active&ch="; s+=ch ; s+="&value=0\">Disable</a> ";
 
             // output states
             s += "</td><td>";
@@ -190,50 +190,9 @@ static void web_set_heat (AsyncWebServerRequest *request) {
                 int i = x.toInt();
                 channels[ch].adjustTimer(i);
             }
-            if (request->hasParam("a")) {
-                x = request->getParam("a")->value();
-                int i = x.toInt();
-                channels[ch].setActive(i);
-            }
         }
     }
     redirect_to_home(request);
-}
-
-static void web_set_target (AsyncWebServerRequest *request) {
-    AsyncWebServerResponse *response = nullptr;
-    String x,y;
-    // GET /targettemp?ch=N
-    // GET /targettemp?ch=N&temp=X where X is new target temp
-    if (!request->hasParam("ch") && request->hasParam("temp")) {
-        response = request->beginResponse(400, "text/plain", "Channel or temp missing");
-    } else {
-        x = request->getParam("ch")->value();
-        int ch = x.toInt();
-        if ((ch >= 0) && (ch <= num_heat_channels)) {
-            if (request->hasParam("temp")) {
-                x = request->getParam("temp")->value();
-                int i = x.toInt();
-                channels[ch].setTargetTemp(i);
-                y = "Setting target temperature ";
-                y+=channels[ch].getName();
-                y+=" to ";
-                y+=x;
-                response = request->beginResponse(200, "text/plain", y);
-            } else {
-                y = "Target temperature ";
-                y+=channels[ch].getName();
-                y+=" is ";
-                y+= String(channels[ch].targetTemp());
-                response = request->beginResponse(200, "text/plain", y);
-            }
-        } else {
-            x = "Invalid channel "+x;
-            response = request->beginResponse(400, "text/plain", x);
-        }
-    }
-    response->addHeader("Connection", "close");
-    request->send(response);
 }
 
 void webserver_setup() {
@@ -243,6 +202,5 @@ void webserver_setup() {
         request->send_P(200, "text/html", statuspage, statuspage_processor);
     });
     server.on("/heat", HTTP_GET, web_set_heat);
-    server.on("/targettemp", HTTP_GET, web_set_target);
     starttime = time(NULL);
 }
