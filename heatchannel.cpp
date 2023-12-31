@@ -76,7 +76,7 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
                 m_cooldown_time = now + m_cooldown_duration;
                 c = ", starting cooldown";
             }
-            syslog.logf(LOG_DAEMON|LOG_INFO,"%s turning off%s",m_name,c);
+            syslogf(LOG_DAEMON|LOG_INFO,"%s turning off%s",m_name,c);
             ret = true;
         }
     }
@@ -85,7 +85,7 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
             // time to turn off
             m_cooldown_time = 0;
             m_lastTime = time(NULL);
-            syslog.logf(LOG_DAEMON|LOG_INFO,"%s cooldown finished",m_name);
+            syslogf(LOG_DAEMON|LOG_INFO,"%s cooldown finished",m_name);
             ret = true;
         }
     }
@@ -130,7 +130,7 @@ void HeatChannel::adjustTimer(int dt) {
                 m_endtime += dt;
             }
     }
-    syslog.logf(LOG_DAEMON | LOG_INFO, "%s set to %d",m_name,m_endtime);
+    syslogf(LOG_DAEMON | LOG_INFO, "%s set to %d",m_name,m_endtime);
     m_changed = true;
 }
 // set the output state to the zv
@@ -142,7 +142,7 @@ void HeatChannel::setOutput(bool state) {
         }
         digitalWrite(m_pin_zv,state?RELAY_ON:RELAY_OFF);
         if (m_zv_output != state) {
-            syslog.logf(LOG_DAEMON | LOG_INFO, "%s output set to %s",m_name,state?"on":"off");
+            syslogf(LOG_DAEMON | LOG_INFO, "%s output set to %s",m_name,state?"on":"off");
         }
         m_zv_output = state;
     }
@@ -153,7 +153,7 @@ void HeatChannel::setSatisfied(bool state) {
             digitalWrite(m_pin_zv_satisfied,state?RELAY_ON:RELAY_OFF);
         }
         if (m_zv_satisfied_output != state) {
-            syslog.logf(LOG_DAEMON | LOG_INFO, "%s satisfied set to %s",m_name,state?"on":"off");
+            syslogf(LOG_DAEMON | LOG_INFO, "%s satisfied set to %s",m_name,state?"on":"off");
         }
         m_zv_satisfied_output = state;
     }
@@ -214,12 +214,9 @@ bool HeatChannel::canCooldown() const {
 
 void HeatChannel::readConfig()
 {
-    String s = "targettemp.";
-    s += m_id;
-    m_target_temp = prefs.getInt(s.c_str(), m_target_temp);
-    s = "chactive.";
-    s += m_id;
-    m_active = prefs.getBool(s.c_str(), m_active);
+    // TODO multiple target temperatures
+    m_target_temp = MyCfgGetInt("targettemp",String(m_id), m_target_temp);
+    m_active = MyCfgGetInt("chactive",String(m_id), m_active);
 }
 
 HeatChannel channels[] = {
@@ -258,6 +255,26 @@ HeatChannel channels[] = {
 };
 const size_t num_heat_channels = sizeof(channels)/sizeof(channels[0]);
 
+static const char * cfg_set_targettemp(const char * name, const String & id, int &value) {
+    int ch = id.toInt();
+    if ((ch >= 0) && (ch <= num_heat_channels)) {
+        channels[ch].setTargetTemp(value);
+        return NULL;
+    } else {
+        return "Invalid channel";
+    }
+}
+
+static const char * cfg_set_active(const char * name, const String & id, int &value) {
+    int ch = id.toInt();
+    if ((ch >= 0) && (ch <= num_heat_channels)) {
+        channels[ch].setActive(value);
+        return NULL;
+    } else {
+        return "Invalid channel";
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // task for input pins to set debounce flag
@@ -287,6 +304,8 @@ void heatchannel_setup() {
     }
     scheduler_setup();
     xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
+    MyCfgRegisterInt("targettemp",&cfg_set_targettemp);
+    MyCfgRegisterInt("chactive",&cfg_set_active);
 }
 
 void HeatChannel::initDisplay() {
@@ -378,14 +397,8 @@ void HeatChannel::drawCountdown() const {
     tft.drawString(t,channel_countdown_x + channel_countdown_w,m_y,fontnum);
 }
 
-
 void HeatChannel::setTargetTemp(int target) {
     m_target_temp = target;
-    String s = "targettemp.";
-    s += m_id;
-    if (prefs.putInt(s.c_str(), target) != 4) {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to set %s",s.c_str());
-    }
 }
 
 void HeatChannel::setActive(bool a) {
@@ -395,9 +408,4 @@ void HeatChannel::setActive(bool a) {
     }
     m_active = a;
     m_changed = true;
-    String s = "chactive.";
-    s += m_id;
-    if (!prefs.putBool(s.c_str(), a)) {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to set %s",s.c_str());
-    }
 };
