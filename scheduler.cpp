@@ -317,7 +317,7 @@ static void sched_set(AsyncWebServerRequest *request) {
             } else if (!request->hasParam("state")) {
                 // serve current state of scheduler slot
                 rc = 200;
-                unsigned char i = 0;
+                char i = 0;
                 if ((err = channels[ch].getScheduler().get(j,request->getParam("slot")->value(),i)) == NULL) {
                     z = String(i);
                 } else {
@@ -328,7 +328,7 @@ static void sched_set(AsyncWebServerRequest *request) {
                 // setting the specific slot
                 x = request->getParam("state")->value();
                 unsigned char i = x.toInt();
-                if ((err = channels[ch].getScheduler().set(j,request->getParam("slot")->value(),i)) == NULL) {
+                if ((err = channels[ch].getScheduler().set(j,request->getParam("slot")->value(),i+48)) == NULL) {
                     z = "Channel ";
                     z+=channels[ch].getName();
                     z+=" day ";
@@ -351,48 +351,6 @@ static void sched_set(AsyncWebServerRequest *request) {
     request->send(response);
 }
 
-static void warmup_set (AsyncWebServerRequest *request) {
-    AsyncWebServerResponse *response = nullptr;
-    String x,y;
-    // GET /targettemp?ch=N
-    // GET /targettemp?ch=N&temp=X where X is new target temp
-    if (!request->hasParam("ch") && request->hasParam("t")) {
-        response = request->beginResponse(400, "text/plain", "channel or time missing");
-    } else {
-        x = request->getParam("ch")->value();
-        int ch = x.toInt();
-        if ((ch >= 0) && (ch <= num_heat_channels)) {
-            if (request->hasParam("t")) {
-                x = request->getParam("t")->value();
-                int i = x.toInt();
-                channels[ch].getScheduler().setWarmup(i);
-                y = "Setting base warmup time for  ";
-                y+=channels[ch].getName();
-                y+=" to ";
-                y+=x;
-                response = request->beginResponse(200, "text/plain", y);
-
-                String s = "warmup.";
-                s += ch;
-                if (prefs.putInt(s.c_str(), i) != 4) {
-                    syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to save %s",s.c_str());
-                }
-            } else {
-                y = "Base warmup time for ";
-                y+=channels[ch].getName();
-                y+=" is ";
-                y+= String(channels[ch].getScheduler().getBaseWarmup());
-                response = request->beginResponse(200, "text/plain", y);
-            }
-        } else {
-            x = "Invalid channel "+x;
-            response = request->beginResponse(400, "text/plain", x);
-        }
-    }
-    response->addHeader("Connection", "close");
-    request->send(response);
-}
-
 Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
     mChannel(aChannel),
     mBaseWarmup(aSetback),
@@ -405,15 +363,22 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
 void Scheduler::readConfig()
 {
     // read saved setback config
-    String s = "warmup.";
-    s+=mChannel.getId();
-    mBaseWarmup = prefs.getInt(s.c_str(), mBaseWarmup);
+    mBaseWarmup = MyCfgGetInt("warmup", String(mChannel.getId()), mBaseWarmup);
 
-    // read saved schedule
-    s="sched.";
-    s+=mChannel.getId();
-    if (prefs.getBytes(s.c_str(), (unsigned char *)mSchedule,sizeof(mSchedule)) != sizeof(mSchedule)) {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to read %s",s.c_str());
+    // read saved schedule (holds chars '0','1','2')
+    String s = MyCfgGetString("schedule", String(mChannel.getId()), String());
+    if (s.length() != sizeof(mSchedule)) {
+        syslogf(LOG_DAEMON|LOG_ERR,"Failed to read %s",s.c_str());
+    } else {
+        int i,j,k,l=0;
+        for (i=0; i<7; ++i) {
+            for (j=0; j<24; ++j) {
+                for (k=0; k<4; ++k) {
+                    mSchedule[i][j][k] = (*(s.c_str()+l))-48;
+                    ++l;
+                }
+            }
+        }
     }
 }
 
@@ -525,7 +490,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
         }
         // take action if required
         if (t > 0) {
-            syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
+            syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
             mChannel.adjustTimer(t);
         }
 
@@ -535,7 +500,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
         // if >24h since last run
         // set timer for (now-1) / -2
         // sludge stopper
-        syslog.logf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
+        syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
         mChannel.adjustTimer(-2);
     }
 }
@@ -549,11 +514,17 @@ time_t Scheduler::lastChange()
 void Scheduler::saveChanges()
 {
     if (mLastChange == 0) { return; }
-    String s="/sched.";
-    s+=mChannel.getId();
-    if (prefs.putBytes(s.c_str(), (unsigned char *)mSchedule,sizeof(mSchedule)) != sizeof(mSchedule)) {
-        syslog.logf(LOG_DAEMON|LOG_ERR,"Failed to write %s",s.c_str());
+    String s;
+    int i,j,k;
+    // save to preferences (holds chars '0','1','2')
+    for(i=0; i<7; ++i) {
+        for(j=0; j<24; ++j) {
+            for(k=0; k<4; ++k) {
+                s+=mSchedule[i][j][k]+48;
+            }
+        }
     }
+    MyCfgPutString("schedule",String(mChannel.getId()),s);
     mLastChange = 0;
 }
 
@@ -627,7 +598,7 @@ static const char * extractTimeslot(int d, const String & hm, int &h, int &m)
     return NULL;
 }
 
-const char * Scheduler::get(int d, const String & hm, unsigned char & state)
+const char * Scheduler::get(int d, const String & hm, char & state) const
 {
     int h;
     int m;
@@ -637,16 +608,49 @@ const char * Scheduler::get(int d, const String & hm, unsigned char & state)
     return NULL;
 }
 
-const char * Scheduler::set(int d, const String & hm, unsigned char state)
+void Scheduler::set(int d, int h, int m, char state)
+{
+    mSchedule[d][h][m] = state;
+    mLastChange = time(NULL);
+    xTaskNotifyGive( schedtask_handle );
+}
+const char * Scheduler::set(int d, const String & hm, char state)
 {
     int h;
     int m;
     const char * ret = extractTimeslot(d, hm, h, m);
     if (ret != NULL) { return ret; }
-    mSchedule[d][h][m] = state;
-    mLastChange = time(NULL);
-    xTaskNotifyGive( schedtask_handle );
+    set(d,h,m,state);
     return NULL;
+}
+
+static const char * cfg_set_warmup(const char * name, const String & id, int &value) {
+    int ch = id.toInt();
+    if ((ch < 0) || (ch >= num_heat_channels)) {
+        return "Invalid channel";
+    } else {
+        return NULL;
+    }
+}
+
+static const char * cfg_set_schedule(const char * name, const String & id, String &s) {
+    int ch = id.toInt();
+    if ((ch < 0) || (ch >= num_heat_channels)) {
+        return "Invalid channel";
+    } else if (s.length() != Scheduler::num_slots) {
+        return "Invalid schedule";
+    } else {
+        int i,j,k,l=0;
+        for (i=0; i<7; ++i) {
+            for (j=0; j<24; ++j) {
+                for (k=0; k<4; ++k) {
+                    channels[i].getScheduler().set(i,j,k,(*(s.c_str()+l))-48);
+                    ++l;
+                }
+            }
+        }
+        return NULL;
+    }
 }
 
 void scheduler_setup() {
@@ -658,6 +662,7 @@ void scheduler_setup() {
         request->send_P(200, "text/html", schedpage, schedpage_processor);
     });
     server.on("/schedulerset", HTTP_GET, sched_set);
-    server.on("/warmup", HTTP_GET, warmup_set);
     xTaskCreate(scheduler_run, "scheduler", 10000, NULL, 1, &schedtask_handle);
+    MyCfgRegisterInt("warmup",cfg_set_warmup);
+    MyCfgRegisterString("schedule",cfg_set_schedule);
 }
