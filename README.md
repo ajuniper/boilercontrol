@@ -15,10 +15,10 @@ All requests are `GET` requests (yuk!)
 * `/schedulerset?ch=X&day=D&slot=H:MM` retrieve given schedule slot
 * `/schedulerset?ch=X&day=D` retrieve schedule for day
 * `/heat?ch=N&q=X` set timer for channel, where X is seconds to run (0=off, -1=forever)
-* `/heat?ch=N&a=X` set channel active or inactive
-* `/warmup?ch=N&t=X` set base warmup time for channel N to X seconds
-* `/targettemp?ch=N` reports current target temperature for channel
-* `/targettemp?ch=N&temp=X` sets target temperature for channel
+* `/config?name=chactive&id=N&value=X` set channel active or inactive
+* `/config?name=warmup&id=N&value=X` set base warmup time for channel N to X seconds
+* `/config?name=targettemp&id=N` reports current target temperature for channel
+* `/config?name=targettemp&id=N&value=X` sets target temperature for channel
 
 Provided by the updater library:
 * `/update` gives page for doing OTA updates
@@ -28,17 +28,9 @@ Provided by the updater library:
 Provided by tempreporter library:
 * `/temperatures` reports current DS18B20 readings
 * `/api?id=XXX` reports current temperature for sensor named `XXX`
-* `/remap?id=XXX&to=YYY` sets name of sensor `XXX` to `YYY` (where `XXX` is typically sensor MAC address)
+* `/config?name=remap&id=XXX&value=YYY` sets name of sensor `XXX` to `YYY` (where `XXX` is typically sensor MAC address)
 * `/fake?id=XXX&temp=t.tt` creates fake sensor `XXX` with value `t.tt` (used for testing)
-* `/pin?id=(ds18b20|dht11)[&pin=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
-
-## LittleFS filesystem files
-
-* `/chactive.N` contains the active/inactive setting for each channel
-* `/warmup.N` contains configured setback time for channel (seconds)
-* `/sched.N` contains schedule for channel
-* `/targettemp.N` contains the target temperature for the channel
-* `/28-XXXXXXXXXXXX` contains the name for the sensor with given MAC address
+* `/config?name=pin&id=(ds18b20|dht11)[&value=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
 
 ## Expected sensor names
 
@@ -48,6 +40,23 @@ Need to associate specific DS18B20 with given name via the `/remap` URL above.
 * `boiler.rethw` is the sensor on the return from the hot water tank
 * `boiler.retmain` is the sensor on the return from the main heating circuit
 * `boiler.retext` is the sensor on the return from the alternate heating circuit
+
+## Preferences objects
+
+pin.ds18b20
+pin.dht11
+remap.[sensorID]
+temprep.poll
+temprep.submit
+
+wifi.hostname
+wifi.ssid
+wifi.password
+
+targettemp.[ch]
+chactive.[ch]
+warmup.[ch]
+schedule.[ch]
 
 ## Scheduler web page DOM objects
 
