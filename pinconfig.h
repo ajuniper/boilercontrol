@@ -21,12 +21,12 @@
 #define PIN_I_ZV1_READY 34
 #define PIN_I_ZV2_READY 35
 
-#define PIN_O_HW_CALL 14
-#define PIN_O_HEAT_CALL 26
-#define PIN_O_PUMP_ON 25
-#define PIN_O_BOILER_ON 33
-#define PIN_O_ZV2_CALL 32
-#define PIN_O_HW_SATISFIED 27
+#define PIN_O_HW_CALL 27
+#define PIN_O_HEAT_CALL 32
+#define PIN_O_PUMP_ON 33
+#define PIN_O_BOILER_ON 25
+#define PIN_O_ZV2_CALL 26
+#define PIN_O_HW_SATISFIED 14
 
 // display
 // see also ../libraries/TFT_eSPI//User_Setup.h
@@ -48,8 +48,8 @@
 //#define PIN_RTC_RST 22
 //#define PIN_RTC_DATA 21
 #define PIN_RTC_CLK 5
-#define PIN_RTC_RST 17
-#define PIN_RTC_DATA 16
+#define PIN_RTC_RST 16
+#define PIN_RTC_DATA 17
 
 // SPI common
 #define PIN_SPI_MOSI 4
