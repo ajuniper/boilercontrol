@@ -8,9 +8,24 @@ class HeatChannel;
 class Scheduler {
     private:
         HeatChannel & mChannel;
+        // scheduler adjustment configuration
+        // base amount always added
         time_t mBaseWarmup;
+        // gradually start earlier
+        int mAdvanceStartTemp;
+        float mAdvanceRate;
+        int mAdvanceLimit;
+        // optionally run hotter
+        int mRunHotterTemp;
+        // gradually run longer
+        int mExtendStartTemp;
+        float mExtendRate;
+        int mExtendLimit;
+
+        // when things have happened
         time_t mLastChange;
         time_t mLastSchedule;
+        int mLastTarget;
         // holds 0/1/2
         char mSchedule[7][24][4];
         static const int num_days = 7;
@@ -34,7 +49,16 @@ class Scheduler {
         void readConfig();
         time_t getBaseWarmup() const { return mBaseWarmup; }
         time_t getWarmup() const;
-        void setWarmup(time_t t) { mBaseWarmup = t; }
+        time_t getExtend() const;
+        bool getBoost() const;
+        void setWarmup(int w) { mBaseWarmup = w; }
+        void setAdvanceStartTemp(int i) { mAdvanceStartTemp = i; }
+        void setAdvanceRate(float r) { mAdvanceRate = r; }
+        void setAdvanceLimit(int l) { mAdvanceLimit = l; }
+        void setBoostTemp(int b) { mRunHotterTemp = b; }
+        void setExtendStartTemp(int i) { mExtendStartTemp = i; }
+        void setExtendRate(float r) { mExtendRate = r; }
+        void setExtendLimit(int l) { mExtendLimit = l; }
         static const int num_slots = num_days * num_hours * num_mins;
 };
 extern void scheduler_setup();

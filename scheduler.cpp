@@ -9,6 +9,7 @@
 #include <time.h>
 #include <mysyslog.h>
 #include "myconfig.h"
+#include "tempsensors.h"
 
 #ifdef SHORT_TIMES
 // max time before running the pump for a short while
@@ -93,8 +94,7 @@ var selectedSchedule = 0;
 // holds the currently displayed schedule
 var currschedule=[];
 // gives the click sequence for each channel
-// TODO load dynamically
-var possiblesettings=[ [ "cold", "hot" ], [ "cold","warm","hot" ] ];
+%POSSIBLESETTINGS%
 
 async function loadSchedule() {
     // unix time is Sunday=0 but ui is Monday=0/Sunday=6
@@ -251,7 +251,25 @@ loadSchedule();
 // Replaces placeholder with button section in your web page
 static String schedpage_processor(const String& var){
   //Serial.println(var);
-  if(var == "CHANNELTABS"){
+  if(var == "POSSIBLESETTINGS") {
+    // var possiblesettings=[ [ "cold", "hot" ], [ "cold","warm","hot" ] ];
+    int i;
+    int j;
+    String s("var possiblesettings=[");
+    for(i=0; i<num_heat_channels; ++i) {
+        if (!channels[i].getEnabled()) { continue ; }
+        if (i>0) { s += ","; }
+        // off(cold) is always available
+        s += "[\"cold\"";
+        if (channels[i].targetTemp2() > -1) {
+            s += ",\"warm\"";
+        }
+        // on(hot) is always available
+        s += ",\"hot\"]";
+    }
+    s+="];";
+    return s;
+  } else if(var == "CHANNELTABS"){
     String s;
     s+="<div id=\"channels\" class=\"tab\">";
     int i;
@@ -354,8 +372,20 @@ static void sched_set(AsyncWebServerRequest *request) {
 Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
     mChannel(aChannel),
     mBaseWarmup(aSetback),
+
+    mAdvanceStartTemp(12),
+    mAdvanceRate(0), // disabled by default
+    mAdvanceLimit(0),
+
+    mRunHotterTemp(0),
+
+    mExtendStartTemp(4),
+    mExtendRate(0), // disabled by default
+    mExtendLimit(0),
+
     mLastChange(0),
-    mLastSchedule(0)
+    mLastSchedule(0),
+    mLastTarget(-1)
 {
     memset(mSchedule, 0, sizeof(mSchedule));
 }
@@ -363,7 +393,14 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
 void Scheduler::readConfig()
 {
     // read saved setback config
-    mBaseWarmup = MyCfgGetInt("warmup", String(mChannel.getId()), mBaseWarmup);
+    mBaseWarmup = MyCfgGetInt("warmupBase", String(mChannel.getId()), mBaseWarmup);
+    mAdvanceStartTemp = MyCfgGetInt("warmupThreshold", String(mChannel.getId()), mAdvanceStartTemp);
+    mAdvanceRate = MyCfgGetInt("warmupScale", String(mChannel.getId()), mAdvanceRate);
+    mAdvanceLimit = MyCfgGetInt("warmupLimit", String(mChannel.getId()), mAdvanceLimit);
+    mRunHotterTemp = MyCfgGetInt("boostThreshold", String(mChannel.getId()), mRunHotterTemp);
+    mExtendStartTemp = MyCfgGetInt("overrunThreshold", String(mChannel.getId()), mExtendStartTemp);
+    mExtendRate = MyCfgGetInt("overrunScale", String(mChannel.getId()), mExtendRate);
+    mExtendLimit = MyCfgGetInt("overrunLimit", String(mChannel.getId()), mExtendLimit);
 
     // read saved schedule (holds chars '0','1','2')
     String s = MyCfgGetString("schedule", String(mChannel.getId()), String());
@@ -382,23 +419,68 @@ void Scheduler::readConfig()
     }
 }
 
+// factor in some adjustments
+// basewarmup + 
+// advance start time
+//   if temp < t1 then add min(((temp - t1) * m),limit)
 time_t Scheduler::getWarmup() const {
-    // TODO factor in some adjustments
-    return mBaseWarmup;
+    time_t w = mBaseWarmup;
+    int temp = tempsensors_get("forecast.low");
+    if (temp <= mAdvanceStartTemp) {
+        int adj = round(((float)(mAdvanceStartTemp - temp)) * mAdvanceRate);
+        if (adj > mAdvanceLimit) {
+            adj = mAdvanceLimit;
+        }
+        w += adj;
+    }
+    return w;
+}
+
+// factor in some adjustments
+// run longer
+//   if temp < t3 then extend duration by min(((temp - t3) * m),limit)
+time_t Scheduler::getExtend() const {
+    int adj;
+    int temp = tempsensors_get("forecast.low");
+    if (temp <= mExtendStartTemp) {
+        adj = round(((float)(mExtendStartTemp - temp)) * mExtendRate);
+        if (adj > mExtendLimit) {
+            adj = mExtendLimit;
+        }
+    }
+    return adj;
+}
+
+// factor in some adjustments
+// run hotter
+//   if temp < t2 then use "hot" not "warm"
+bool Scheduler::getBoost() const {
+    int temp = tempsensors_get("forecast.low");
+    return (temp <= mRunHotterTemp);
 }
 
 void Scheduler::checkSchedule(int d, int h, int m)
 {
     // calculate current warmup time
     time_t t = getWarmup();
+    time_t w = t;
 
     struct tm w2;
     time_t now = time(NULL);
     time_t starttime = now;
     time_t c = 0;
+    int targettemp=-1;
 
     // do not keep calculating until any current cycle is completed
     if (mLastSchedule > now) {
+        // check to see if the target temperature needs adjusting
+        localtime_r(&starttime, &w2);
+        targettemp = mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15];
+        if ((targettemp != 0) && (targettemp != mLastTarget)) {
+            mChannel.setTargetTempBySetting(targettemp);
+            mLastTarget = targettemp;
+            syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler adjusts %s setting %d",mChannel.getName(),targettemp);
+        }
         return;
     }
 
@@ -410,6 +492,8 @@ void Scheduler::checkSchedule(int d, int h, int m)
         if (mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15] != 0) {
             // we have found a slot which is on within the warmup window
             // so drop in to the next loop
+            // remember the first temperature setting to use
+            targettemp = mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15];
             break;
         }
 
@@ -488,9 +572,20 @@ void Scheduler::checkSchedule(int d, int h, int m)
                 t -= (c - now);
             }
         }
+
         // take action if required
         if (t > 0) {
-            syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds",mChannel.getName(),t);
+            // add any temperature compensation
+            c = getExtend();
+            t += c;
+
+            // turn it up if it is cold
+            if (getBoost()) { targettemp = 2; }
+
+            // tell the world
+            syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds (warmup %d extend %d), setting %d",mChannel.getName(),t,w,c,targettemp);
+            mChannel.setTargetTempBySetting(targettemp);
+            mLastTarget = targettemp;
             mChannel.adjustTimer(t);
         }
 
@@ -625,12 +720,39 @@ const char * Scheduler::set(int d, const String & hm, char state)
 }
 
 static const char * cfg_set_warmup(const char * name, const String & id, int &value) {
-    int ch = id.toInt();
-    if ((ch < 0) || (ch >= num_heat_channels)) {
+    int i = id.toInt();
+    if ((i < 0) || (i >= num_heat_channels)) {
         return "Invalid channel";
+    } else if (strcmp(name, "warmupBase") == 0) {
+        channels[i].getScheduler().setWarmup(value);
+    } else if (strcmp(name, "warmupThreshold") == 0) {
+        channels[i].getScheduler().setAdvanceStartTemp(value);
+    } else if (strcmp(name, "warmupLimit") == 0) {
+        channels[i].getScheduler().setAdvanceLimit(value);
+    } else if (strcmp(name, "boostThreshold") == 0) {
+        channels[i].getScheduler().setBoostTemp(value);
+    } else if (strcmp(name, "overrunThreshold") == 0) {
+        channels[i].getScheduler().setExtendStartTemp(value);
+    } else if (strcmp(name, "overrunLimit") == 0) {
+        channels[i].getScheduler().setExtendLimit(value);
     } else {
-        return NULL;
+        return "Invalid selector";
     }
+    return NULL;
+}
+
+static const char * cfg_set_warmup_float(const char * name, const String & id, float &value) {
+    int i = id.toInt();
+    if ((i < 0) || (i >= num_heat_channels)) {
+        return "Invalid channel";
+    } else if (strcmp(name, "warmupScale") == 0) {
+        channels[i].getScheduler().setAdvanceRate(value);
+    } else if (strcmp(name, "overrunScale") == 0) {
+        channels[i].getScheduler().setExtendRate(value);
+    } else {
+        return "Invalid selector";
+    }
+    return NULL;
 }
 
 static const char * cfg_set_schedule(const char * name, const String & id, String &s) {
@@ -663,6 +785,17 @@ void scheduler_setup() {
     });
     server.on("/schedulerset", HTTP_GET, sched_set);
     xTaskCreate(scheduler_run, "scheduler", 10000, NULL, 1, &schedtask_handle);
-    MyCfgRegisterInt("warmup",cfg_set_warmup);
-    MyCfgRegisterString("schedule",cfg_set_schedule);
+
+    MyCfgRegisterInt("warmupBase",&cfg_set_warmup);
+    MyCfgRegisterInt("warmupThreshold",&cfg_set_warmup);
+    MyCfgRegisterFloat("warmupScale",&cfg_set_warmup_float);
+    MyCfgRegisterInt("warmupLimit",&cfg_set_warmup);
+
+    MyCfgRegisterInt("boostThreshold",&cfg_set_warmup);
+
+    MyCfgRegisterInt("overrunThreshold",&cfg_set_warmup);
+    MyCfgRegisterFloat("overrunScale",&cfg_set_warmup_float);
+    MyCfgRegisterInt("overrunLimit",&cfg_set_warmup);
+
+    MyCfgRegisterString("schedule",&cfg_set_schedule);
 }
