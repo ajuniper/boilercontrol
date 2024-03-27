@@ -33,7 +33,7 @@ static void print_clock() {
     tft.drawString(dt,clock_x,clock_y,fontnum);
 
     if (WiFi.status() == WL_CONNECTED) {
-        snprintf(dt,dt_len,"%s",WiFi.localIP().toString().c_str());
+        snprintf(dt,dt_len,"%16s",WiFi.localIP().toString().c_str());
     } else {
         snprintf(dt,dt_len,"%16s","---.---.---.---");
     }
@@ -107,12 +107,12 @@ static void draw_temperatures() {
     for (i=0; i<num_temps; ++i) {
         int t = temperatures[i].getTemp();
         if (t != 999) {
-            sprintf(m," %2dC",t);
+            sprintf(m,"%3dC",t);
         } else {
             sprintf(m," ---");
         }
         tft.drawString(m,x,temp_y,1);
-        x+=80;
+        x+=temp_x;
     }
 }
 
@@ -221,7 +221,7 @@ void display_init() {
     // set up display
     tft.init();
     // connectors on right
-    tft.setRotation(1);
+    tft.setRotation(display_rotation);
     tft.fillScreen(TFT_BLACK);
     // text is right justified
     tft.setTextDatum(TR_DATUM);
@@ -249,8 +249,8 @@ void display_init() {
     tft.setFreeFont(temp_font);
     tft.setTextColor(temp_colour,TFT_BLACK);
     for (i=0; i<num_temps; ++i) {
-        sprintf(m,"%7s     ",temperatures[i].getName());
-        tft.drawString(m,x,temp_y,1);
+        sprintf(m,"%10s",temperatures[i].getName());
+        tft.drawString(m,x,temp_y-10,1);
         x+=temp_x;
     }
     xTaskCreate(displaytask, "displaytask", 10000, NULL, 1, &displaytask_handle);   
