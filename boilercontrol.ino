@@ -21,7 +21,7 @@ bool o_pump_on = false;
 bool o_boiler_on = false;
 t_output_state o_boiler_state;
 t_output_state o_pump_state;
-int target_temp = 0;
+int target_temp = 999;
 
 #include <my_secrets.h>
 const char* ssid     = MY_WIFI_SSID;
@@ -32,7 +32,7 @@ const char* password = MY_WIFI_PASSWORD;
 #ifdef SHORT_TIMES
 #define BOILER_SHORT_CYCLE 30
 #else
-#define BOILER_SHORT_CYCLE 300
+#define BOILER_SHORT_CYCLE 120
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -54,7 +54,7 @@ void setup() {
     // Serial port for debugging purposes
     Serial.begin(115200);
     Serial.println("Starting...");
-    MyCfgInit();
+    MyCfgInit(true);
 
     mytime_setup(MY_TIMEZONE, PIN_RTC_CLK, PIN_RTC_DATA, PIN_RTC_RST);
     WIFI_init("boiler");
@@ -94,6 +94,7 @@ static void output_task (void *)
     bool this_boiler = o_boiler_on;
     int last_target_temp = target_temp;
     time_t boiler_cycle_time = 0;
+    int hysteresis = 100 - 10;
 
     while(1) {
         // wait for signal
@@ -113,17 +114,22 @@ static void output_task (void *)
                 o_boiler_state = OUTPUT_OFF;
 
             } else if (boiler_cycle_time > now) {
-                // boiler is already cycling so nothing to do
+                // boiler is already cycled off by time so nothing to do
+                // just wait until the end of the cycle window unless
+                // something changes in the mean time
                 waittime = boiler_cycle_time - now;
+
+            } else if ((boiler_cycle_time != 0) &&
+                       (flow_temp > ((last_target_temp * hysteresis)/100))) {
+                // boiler is cycled off by temperature so nothing to do
+                // just wait a few seconds and check again unless
+                // something changes in the mean time
+                waittime = 10000;
 
             } else if (flow_temp > last_target_temp) {
                 // boiler just went over temperature
-                if (boiler_cycle_time != 0) {
-                    // boiler was already over temp and not cooled after 5 mins
-                    syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is still greater than target %dC",flow_temp,last_target_temp);
-                } else {
-                    syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC",flow_temp,last_target_temp);
-                }
+                syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC",flow_temp,last_target_temp);
+
                 // start a new cycle period
                 this_boiler = false;
                 boiler_cycle_time = now + BOILER_SHORT_CYCLE;
@@ -158,6 +164,7 @@ static void output_task (void *)
             boiler_cycle_time = 0;
         }
         last_target_temp = target_temp;
+        if (last_target_temp == 999) { last_target_temp = 0; }
     }
 }
 
@@ -202,6 +209,8 @@ void loop() {
                 }
             }
         }
+        // 999 is rendered as --- on the display
+        if (target_temp == 0) { target_temp = 999; }
         if (calling) {
             // something is calling for heat
 
