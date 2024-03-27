@@ -1,27 +1,46 @@
 TEST
+# relay outputs in wrong order
+# cycle based on flow hysteresis + min cycle time
 . check display updates as expected on turn-off
+. test html pages
+tempchannel to have multiple temps
+        know which is in use - scheduler
+        know which is in use - web
+        know which is in use - display
+        know temp for each
+        scheduler to spot change in requested temp and adjust
+display to show target temp
+temperature fetching
+. heating advance
+. heating extend
+. heating boost
 
 FIX
-. add file system browser
-. run heating hotter for some initial period
+# why is pump relay not firing?
+# query param to avoid redirect on direct config change
+# no clock until wifi joined
+# web uptime shows massive value
+# config incorrect
+# config to disable tempreporter
+# config for boiler cycling
+. water does not toggle off
 
 TODO
+. web rotate top table to show better on mobile
+. cycle based on return temp + min off time
 . web
     . make look like lcd
 . scheduler onscreen
 . adjust target temp based on return temp
-. boiler cycling based on outside temp
-  curl 'https://api.open-meteo.com/v1/forecast?latitude=51.75413&longitude=-1.124867&hourly=temperature_2m&timezone=GMT&timeformat=unixtime&past_days=0&forecast_days=2' |jq -r '.hourly.temperature_2m[]'
-  also base on return temp
-. (outside) temp setback / weather query
 . auto hotspot if no wifi
 . mqtt
-. proper web page
+. web make page auto refresh
 . ntp, syslog targets from dhcp
 . watchdog timer
 
 IGNORE wnf
 . persist on-until time in rtc/flash (scheduler fixes)
+. run heating hotter for some initial period (do it manually via multi temp schedule)
 
 TESTED
 rtc integration
@@ -76,3 +95,6 @@ link to scheduler from front page
 . check uptime
 . sat output should record/report state even if no pin
 . changing schedule should force reevaluation
+# temp labels
+# invert touch screen coordinates if display_rotation=3
+# target should be --- if boiler off
