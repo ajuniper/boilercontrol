@@ -12,8 +12,8 @@ class button_t {
                 ) :
             m_x1(a_x-button_expand),
             m_x2(a_x+a_w+button_expand),
-            m_y2(240-a_y+button_expand),
-            m_y1(240-a_y-a_h-button_expand),
+            m_y2(display_max_y - a_y + button_expand),
+            m_y1(display_max_y - a_y - a_h - button_expand),
             m_presstime(0),
             m_lastnotifytime(0),
             m_pressed(a_p),
