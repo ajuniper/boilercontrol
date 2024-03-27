@@ -6,6 +6,15 @@
 
 #include "time.h"
 
+#define display_conns_on_left
+#ifdef display_conns_on_left
+#define display_rotation 3
+#else
+#define display_rotation 1
+#endif
+#define display_max_x 320
+#define display_max_y 240
+
 #define touch_delay 25
 #define fontnum 1
 #define clock_font &FreeMonoBold18pt7b
@@ -22,6 +31,8 @@
 #define channel_spacing 55
 #define channel_icon_size 24
 #define channel_colour TFT_CYAN
+#define channel_colour_hot TFT_RED
+#define channel_colour_warm TFT_ORANGE
 #define channel_label_x 1
 #define channel_label_w channel_x
 #define channel_active_x (channel_x + 30)
@@ -37,7 +48,7 @@
 #endif
 
 #define temp_font nullptr
-#define temp_x 80
+#define temp_x 64
 #define temp_y 210
 #define temp_colour TFT_DARKGREY
 
