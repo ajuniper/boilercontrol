@@ -14,6 +14,8 @@ private:
     MainsDetect m_ready;
     MainsDetect m_satisfied;
     int m_target_temp;
+    int m_target_temp1;
+    int m_target_temp2;
     bool m_enabled;
     bool m_active;
     int m_cooldown_duration;
@@ -38,7 +40,8 @@ public:
 	int a_pin_o_zv_satisfied,
 	int a_pin_i_zv_ready,
 	int a_pin_i_zv_satisfied,
-        int a_target_temp,
+        int a_target_temp1,
+        int a_target_temp2,
 	bool a_enabled,
 	int a_cooldown_duration,
         int a_y,
@@ -63,8 +66,16 @@ public:
     // set the output state to the zv
     void setOutput(bool state);
     void setSatisfied(bool state);
+    // returns current target temp
     int targetTemp() const { return m_target_temp; }
+    // return configured target temperatures
+    // targettemp2 is optional and set to -1 if not supported
+    int targetTemp1() const { return m_target_temp1; }
+    int targetTemp2() const { return m_target_temp2; }
+    void setTargetTemp1(int target) { m_target_temp1 = target; }
+    void setTargetTemp2(int target) { m_target_temp2 = target; }
     void setTargetTemp(int target);
+    void setTargetTempBySetting(int target); /* 0/1/2 */
 
     // should this channel be running?
     bool wantFire() const;
@@ -80,12 +91,13 @@ public:
     // display handling for this channel
     void initDisplay();
     void updateDisplay();
+    void drawName(bool warm) const; // F=hot T=warm
     void drawIO(int row, int oncolour, bool state) const;
     void readConfig();
     time_t lastTime() { return m_lastTime; }
     Scheduler & getScheduler() { return m_scheduler; }
 };
 
-extern const size_t num_heat_channels;
+#define num_heat_channels 2
 extern HeatChannel channels[];
 extern void heatchannel_setup();

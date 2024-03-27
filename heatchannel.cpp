@@ -27,7 +27,8 @@ HeatChannel::HeatChannel(
     int a_pin_o_zv_satisfied,
     int a_pin_i_zv_ready,
     int a_pin_i_zv_satisfied,
-    int a_target_temp,
+    int a_target_temp1,
+    int a_target_temp2,
     bool a_enabled,
     int a_cooldown_duration,
     int a_y,
@@ -38,7 +39,8 @@ HeatChannel::HeatChannel(
     m_pin_zv_satisfied(a_pin_o_zv_satisfied),
     m_ready(a_pin_i_zv_ready,a_name,"ready"),
     m_satisfied(a_pin_i_zv_satisfied,a_name,"satisfied"),
-    m_target_temp(a_target_temp),
+    m_target_temp1(a_target_temp1),
+    m_target_temp2(a_target_temp2),
     m_enabled(a_enabled),
     m_active(false),
     m_cooldown_duration(a_cooldown_duration),
@@ -214,18 +216,18 @@ bool HeatChannel::canCooldown() const {
 
 void HeatChannel::readConfig()
 {
-    // TODO multiple target temperatures
-    m_target_temp = MyCfgGetInt("targettemp",String(m_id), m_target_temp);
+    m_target_temp1 = MyCfgGetInt("targettemp",String(m_id), m_target_temp1);
+    m_target_temp2 = MyCfgGetInt("targettemp2",String(m_id), m_target_temp2);
     m_active = MyCfgGetInt("chactive",String(m_id), m_active);
 }
 
-HeatChannel channels[] = {
+HeatChannel channels[num_heat_channels] = {
     HeatChannel(0, "Hot Water",
                 PIN_O_HW_CALL,
                 PIN_O_HW_SATISFIED,
                 PIN_I_HW_CALLS,
                 PIN_I_HW_SATISFIED,
-                65, // target temp
+                65, -1, // target temps (warm not supported)
                 true,
                 HEAT_COOLDOWN,
                 channel_y,
@@ -236,29 +238,34 @@ HeatChannel channels[] = {
                 -1,
                 PIN_I_ZV1_READY,
                 -1,
-                55, // target temp
+                65, 50, // target temp
                 true,
                 HEAT_COOLDOWN,
                 channel_y+channel_spacing,
                 HEAT_SETBACK),
 
+#if 0
     HeatChannel(2, "Kitchen",
                 PIN_O_ZV2_CALL,
                 -1,
                 PIN_I_ZV2_READY,
                 -1,
-                55, // target temp
+                50, -1, // target temp (warm not supported)
                 false,
                 HEAT_COOLDOWN,
                 channel_y+channel_spacing+channel_spacing,
                 HEAT_SETBACK)
+#endif
 };
-const size_t num_heat_channels = sizeof(channels)/sizeof(channels[0]);
 
 static const char * cfg_set_targettemp(const char * name, const String & id, int &value) {
     int ch = id.toInt();
     if ((ch >= 0) && (ch <= num_heat_channels)) {
-        channels[ch].setTargetTemp(value);
+        if (name == "targettemp2") {
+            channels[ch].setTargetTemp2(value);
+        } else {
+            channels[ch].setTargetTemp1(value);
+        }
         return NULL;
     } else {
         return "Invalid channel";
@@ -305,16 +312,25 @@ void heatchannel_setup() {
     scheduler_setup();
     xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
     MyCfgRegisterInt("targettemp",&cfg_set_targettemp);
+    MyCfgRegisterInt("targettemp2",&cfg_set_targettemp);
     MyCfgRegisterInt("chactive",&cfg_set_active);
 }
 
-void HeatChannel::initDisplay() {
+void HeatChannel::drawName(bool warm) const {
     if (m_enabled) {
         tft.setFreeFont(channel_font);
-        tft.setTextColor(channel_colour,TFT_BLACK);
+        if (warm) {
+            tft.setTextColor(channel_colour_warm,TFT_BLACK);
+        } else {
+            tft.setTextColor(channel_colour_hot,TFT_BLACK);
+        }
         tft.drawString(m_name,channel_x,m_y,fontnum);
-        updateDisplay();
     }
+}
+
+void HeatChannel::initDisplay() {
+    drawName(false);
+    updateDisplay();
 }
 
 void HeatChannel::updateDisplay() {
@@ -399,6 +415,18 @@ void HeatChannel::drawCountdown() const {
 
 void HeatChannel::setTargetTemp(int target) {
     m_target_temp = target;
+}
+
+void HeatChannel::setTargetTempBySetting(int target) {
+    /* 0/1/2 */
+    if ((m_target_temp2 > -1) && (target == 1)) {
+        // channel supports 2 "on" temperatures
+        // "warm" is requested
+        m_target_temp = m_target_temp2;
+    } else {
+        // target temperature is always #1
+        m_target_temp = m_target_temp1;
+    }
 }
 
 void HeatChannel::setActive(bool a) {
