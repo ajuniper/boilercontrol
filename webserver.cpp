@@ -9,6 +9,7 @@
 #include <WiFi.h>
 #include "outputs.h"
 #include "tempsensors.h"
+#include "tempfetcher.h"
 
 extern bool o_pump_on;
 extern bool o_boiler_on;
@@ -56,21 +57,16 @@ static String statuspage_processor(const String& var){
     int i;
     unsigned long t;
     s+="<p><table border=\"1\">";
-    s+="<tr><th align=\"left\">Name</th><th align=\"left\">Timer</th><th align=\"left\">Target<br/>Temp</th><th align=\"left\">Base<br/>Warmup</th><th align=\"left\">Actions</th><th align=\"left\">State</th></tr>";
+    s+="<tr><td/>";
     for(i=0; i<num_heat_channels; ++i) {
-        if (!channels[i].getEnabled()) { continue ; }
-        ch = '0'+i;
-        // name
-        s += "<tr><th align=\"left\">";
+        s +="<th align=\"center\">";
         s += channels[i].getName();
-        // timer
-        s += "</th><td>";
-        if (!channels[i].getActive()) {
-            s+="Inactive";
-            // empty cell for target temp and warmup time
-            s+="</td><td>";
-            s+="</td><td>";
-        } else {
+        s +="</th>";
+    }
+    s+="</tr><tr><th align=\"left\">Timer</th>";
+    for(i=0; i<num_heat_channels; ++i) {
+        s +="<td align=\"center\">";
+        if (channels[i].getActive()) {
             // timer
             t = channels[i].getTimer();
             switch (t) {
@@ -97,41 +93,73 @@ static String statuspage_processor(const String& var){
                 default:
                     getInterval(s,t-now);
             }
-            // target temperature
-            s+="</td><td>";
-            s+=String(channels[i].targetTemp());
-            s+="C</td><td>";
-            getInterval(s,channels[i].getScheduler().getBaseWarmup());
-        } // end not inactive
-
-        // actions
-        s+="</td><td>";
-        if (!channels[i].getActive()) {
-            s+="<a href=\"config?name=active&id=";
-            s+=ch;
-            s+="&value=1\">Activate</A>";
-            // empty cell for output states
-            s += "</td><td>";
         } else {
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600\">+1h</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200\">+2h</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800\">+3h</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1\">On</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=0\">Off</a> ";
-            s+="<a href=\"config?name=active&ch="; s+=ch ; s+="&value=0\">Disable</a> ";
+            s += "Inactive";
+        }
+        s +="</td>";
+    }
 
-            // output states
-            s += "</td><td>";
+    s+="</tr><tr><th align=\"left\">Target Temp</th>";
+    for(i=0; i<num_heat_channels; ++i) {
+        s +="<td align=\"center\">";
+        if (channels[i].getActive()) {
+            s+=String(channels[i].targetTemp());
+            s+="C";
+        }
+        s +="</td>";
+    }
+
+    s+="</tr><tr><th align=\"left\">Base Warmup</th>";
+    for(i=0; i<num_heat_channels; ++i) {
+        s +="<td align=\"center\">";
+        if (channels[i].getActive()) {
+            getInterval(s,channels[i].getScheduler().getBaseWarmup());
+        }
+        s +="</td>";
+    }
+
+    s+="</tr><tr><th align=\"left\">Actions</th>";
+    for(i=0; i<num_heat_channels; ++i) {
+        s +="<td align=\"center\">";
+        ch = '0'+i;
+        if (channels[i].getActive()) {
+            if (channels[i].targetTemp2() > -1) {
+                s+="Warm: ";
+                s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600&t=1\">+1h</a> ";
+                s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200&t=1\">+2h</a> ";
+                s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=1\">+3h</a> ";
+                s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1&t=1\">On</a> ";
+                s+="<br/>Hot: ";
+            }
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600&t=2\">+1h</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200&t=2\">+2h</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=2\">+3h</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1&t=2\">On</a><br/>";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=0\">Off</a> ";
+            s+="<a href=\"config?name=chactive&ch="; s+=ch ; s+="&value=0\">Disable</a> ";
+        } else {
+            s+="<a href=\"config?name=chactive&id=";
+            s+=ch;
+            s+="&value=1\">Activate</a>";
+        }
+        s +="</td>";
+    }
+
+    s+="</tr><tr><th align=\"left\">State</th>";
+    for(i=0; i<num_heat_channels; ++i) {
+        s +="<td align=\"center\">";
+        if (channels[i].getActive()) {
             s += (channels[i].getOutput()) ? "on" : "off";
             s += " ";
             s += (channels[i].getInputReady().pinstate()) ? "calls " : "";
             s += (channels[i].getInputSatisfied().pinstate()) ? "satisfied " : "";
             s += (channels[i].getSatisfied()) ? "SATon" : "SAToff";
         }
-        s+="</td></tr>";
+        s +="</td>";
     }
+    s+="</tr></table>";
 
-    s+="</table><p><table border=\"1\">";
+    s+="<p><table border=\"1\">";
     s += "<tr><td colspan=\"2\"><a href=\"scheduler\">Schedules</a></td><tr>";
     s += "<tr><td>Boiler</td><td>";
     switch (o_boiler_state) {
@@ -156,7 +184,13 @@ static String statuspage_processor(const String& var){
             s += "--- ";
         }
     }
-    s += "</td></tr><tr><td>Target Temp</td><td>" + String(target_temp);
+    s += "</td></tr><tr><td>Target Temp</td><td>";
+    if (target_temp == 999) {
+        s+= "---";
+    } else {
+        s+= String(target_temp);
+    }
+    s += "</td></tr><tr><td>Forecast low</td><td>" + String(forecast_low_temp);
     s += "</td></tr><tr><td>WiFi SNR</td><td>" + String(WiFi.RSSI());
     s += "</td></tr><tr><td>Date</td><td>";
     struct tm timeinfo;
@@ -186,8 +220,15 @@ static void web_set_heat (AsyncWebServerRequest *request) {
         int ch = x.toInt();
         if ((ch >= 0) && (ch <= num_heat_channels)) {
             if (request->hasParam("q")) {
+                int i;
+                // if there is a temp setting then enact that
+                if (request->hasParam("t")) {
+                    x = request->getParam("t")->value();
+                    i = x.toInt();
+                    channels[ch].setTargetTempBySetting(i);
+                }
                 x = request->getParam("q")->value();
-                int i = x.toInt();
+                i = x.toInt();
                 channels[ch].adjustTimer(i);
             }
         }
