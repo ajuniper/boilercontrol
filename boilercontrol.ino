@@ -45,6 +45,19 @@ const char* password = MY_WIFI_PASSWORD;
 // Web Server Stuff
 #include "webserver.h"
 
+static const char * handleConfigBoiler(const char * name, const String & id, int &value) {
+    if (id == "time") {
+        // all ok, save the value
+        return NULL;
+    } else if (id == "percent") {
+        // all ok, save the value
+        return NULL;
+    } else {
+        return "boiler config not recognised";
+    }
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // setup
@@ -55,6 +68,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Starting...");
     MyCfgInit(true);
+    MyCfgRegisterInt("cycle", &handleConfigBoiler);
 
     mytime_setup(MY_TIMEZONE, PIN_RTC_CLK, PIN_RTC_DATA, PIN_RTC_RST);
     WIFI_init("boiler");
@@ -128,13 +142,23 @@ static void output_task (void *)
 
             } else if (flow_temp > last_target_temp) {
                 // boiler just went over temperature
-                syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC",flow_temp,last_target_temp);
+
+                // read the cycling config
+                int short_cycle = MyCfgGetInt("cycle","time", BOILER_SHORT_CYCLE);
+                hysteresis = 100 - MyCfgGetInt("cycle","percent", 10);
+
+                syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC fire again at %dC",flow_temp,last_target_temp,((last_target_temp * hysteresis)/100));
 
                 // start a new cycle period
                 this_boiler = false;
-                boiler_cycle_time = now + BOILER_SHORT_CYCLE;
-                // wait 5 mins before checking again
-                waittime = BOILER_SHORT_CYCLE * 1000;
+
+                // the earliest time the boiler can fire again
+                boiler_cycle_time = now + short_cycle;
+
+                // how long to wait before looking again
+                waittime = short_cycle * 1000;
+
+                // we are cycling the boiler
                 o_boiler_state = OUTPUT_COOLING;
 
             } else {
