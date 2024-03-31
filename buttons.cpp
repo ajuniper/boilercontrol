@@ -7,6 +7,7 @@
 #include "buttons.h"
 #include "display.h"
 #include "heatchannel.h"
+#include "myconfig.h"
 
 // are we asking for hot or warm heat?
 static bool selected_temperatures[num_heat_channels];
@@ -81,7 +82,9 @@ static bool handle_press_active(int a_h, time_t a_duration)
 {
     if (!channels[a_h].getEnabled()) { return false; }
     if (a_duration > 1) {
-        channels[a_h].setActive(!channels[a_h].getActive());
+        bool a = !channels[a_h].getActive();
+        channels[a_h].setActive(a);
+        MyCfgPutInt("name", String(a_h), a);
         return true;
     }
     return false;
