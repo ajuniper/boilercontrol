@@ -108,13 +108,11 @@ async function loadSchedule() {
     }
     var sch = document.getElementById(selectedSchedule).getElementsByClassName("timebox");
     var i = 0;
-    for (s in sch) {
-        if (typeof(sch[s]) == "object") {
-            sch[s].classList.remove(possiblesettings[selectedCh][sch[s].getAttribute("data-temp")]);
-            sch[s].setAttribute("data-temp",c[i]);
-            sch[s].classList.add(possiblesettings[selectedCh][c[i]]);
-            ++i;
-        }
+    for (s=0; s<sch.length; ++s) {
+        sch[s].classList.remove(possiblesettings[selectedCh][sch[s].getAttribute("data-temp")]);
+        sch[s].setAttribute("data-temp",c[i]);
+        sch[s].classList.add(possiblesettings[selectedCh][c[i]]);
+        ++i;
     }
 }
 
@@ -175,15 +173,14 @@ async function copyForwards() {
     selectedDay+=1;
     if (selectedDay >= 7) { selectedDay -= 7; }
     let f = document.getElementById(selectedSchedule);
-    f = f.getElementsByTagName("input");
+    f = f.getElementsByClassName("timebox");
     let t = document.getElementById("s"+selectedCh+"."+selectedDay);
-    t = t.getElementsByTagName("input");
+    t = t.getElementsByClassName("timebox");
 
-    for(v in f) {
+    for(v=0; v<f.length; ++v) {
         tt = t[v].getAttribute("data-temp");
         ff = f[v].getAttribute("data-temp");
         if (tt != ff) {
-            t[v].setAttribute("data-temp",ff);
             await toggleCheckbox(t[v]);
         }
     }
