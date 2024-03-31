@@ -136,7 +136,7 @@ static String statuspage_processor(const String& var){
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=2\">+3h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1&t=2\">On</a><br/>";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=0\">Off</a> ";
-            s+="<a href=\"config?name=chactive&ch="; s+=ch ; s+="&value=0\">Disable</a> ";
+            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=0\">Disable</a> ";
         } else {
             s+="<a href=\"config?name=chactive&id=";
             s+=ch;
@@ -190,7 +190,6 @@ static String statuspage_processor(const String& var){
     } else {
         s+= String(target_temp);
     }
-    s += "</td></tr><tr><td>Forecast low</td><td>" + String(forecast_low_temp);
     s += "</td></tr><tr><td>WiFi SNR</td><td>" + String(WiFi.RSSI());
     s += "</td></tr><tr><td>Date</td><td>";
     struct tm timeinfo;
