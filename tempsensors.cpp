@@ -14,11 +14,12 @@ extern int target_temp;
 
 tempsensor_t temperatures[] = {
     // addr, name(label)
+    // xxxxxxxxxxxx.tr - max 12 characters due to prefs library
     { "targettemp","Target", &target_temp },
     { "forecast.low", "Forecast", &forecast_low_temp },
     { "boiler.flow", "Flow" },
     { "boiler.rethw", "HWret" },
-    { "boiler.retmain", "HtRet" }
+    { "boiler.retht", "HtRet" }
 };
 const size_t num_temps = (sizeof(temperatures)/sizeof(temperatures[0]));
 
