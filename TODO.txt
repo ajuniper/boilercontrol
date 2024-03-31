@@ -1,7 +1,6 @@
 TEST
-# relay outputs in wrong order
-# cycle based on flow hysteresis + min cycle time
 . check display updates as expected on turn-off
+. test /configlist
 . test html pages
 tempchannel to have multiple temps
         know which is in use - scheduler
@@ -9,24 +8,20 @@ tempchannel to have multiple temps
         know which is in use - display
         know temp for each
         scheduler to spot change in requested temp and adjust
-display to show target temp
-temperature fetching
 . heating advance
 . heating extend
 . heating boost
 
 FIX
+# active does not load from config / save to config
+# schedule does not load from config / save to config
+# scheduler config nodes name too long
+# scheduler config names not documented
 # why is pump relay not firing?
-# query param to avoid redirect on direct config change
+# when web sets warm/hot, display should update
 # no clock until wifi joined
-# web uptime shows massive value
-# config incorrect
-# config to disable tempreporter
-# config for boiler cycling
-. water does not toggle off
 
 TODO
-. web rotate top table to show better on mobile
 . cycle based on return temp + min off time
 . web
     . make look like lcd
@@ -41,6 +36,7 @@ TODO
 IGNORE wnf
 . persist on-until time in rtc/flash (scheduler fixes)
 . run heating hotter for some initial period (do it manually via multi temp schedule)
+# query param to avoid redirect on direct config change (new value in 302)
 
 TESTED
 rtc integration
@@ -98,3 +94,12 @@ link to scheduler from front page
 # temp labels
 # invert touch screen coordinates if display_rotation=3
 # target should be --- if boiler off
+# fake temperatures
+# mains sense inputs in reverse order
+# relay outputs in wrong order
+# cycle based on flow hysteresis + min cycle time
+# config for boiler cycling
+# config to disable tempreporter
+display to show target temp
+temperature fetching
+. web rotate top table to show better on mobile
