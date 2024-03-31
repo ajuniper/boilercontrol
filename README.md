@@ -17,8 +17,10 @@ All requests are `GET` requests (yuk!)
 * `/heat?ch=N&q=X` set timer for channel, where X is seconds to run (0=off, -1=forever)
 * `/config?name=chactive&id=N&value=X` set channel active or inactive
 * `/config?name=warmup&id=N&value=X` set base warmup time for channel N to X seconds
-* `/config?name=targettemp&id=N` reports current target temperature for channel
-* `/config?name=targettemp&id=N&value=X` sets target temperature for channel
+* `/config?name=targettemp&id=N` reports current target temperature for channel N
+* `/config?name=targettemp&id=N&value=X` sets target temperature for channel N
+* `/config?name=cycle&id=time&value=X` sets min off time for cycling boiler (default 120 seconds)
+* `/config?name=cycle&id=percent&value=X` sets percentage which flow must drop to end cycle (default 10%)
 
 Provided by the updater library:
 * `/update` gives page for doing OTA updates
@@ -31,15 +33,16 @@ Provided by tempreporter library:
 * `/config?name=remap&id=XXX&value=YYY` sets name of sensor `XXX` to `YYY` (where `XXX` is typically sensor MAC address)
 * `/fake?id=XXX&temp=t.tt` creates fake sensor `XXX` with value `t.tt` (used for testing)
 * `/config?name=pin&id=(ds18b20|dht11)[&value=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
+* `/config?name=tr&id=X&value=T` sets enable reporting flag for temperature channel X where X is name or addr, value 0 or 1
 
 ## Expected sensor names
 
 Need to associate specific DS18B20 with given name via the `/remap` URL above.
+Max 12 characters due to preferences library limits.
 
 * `boiler.flow` is the sensor on the output from the boiler
 * `boiler.rethw` is the sensor on the return from the hot water tank
-* `boiler.retmain` is the sensor on the return from the main heating circuit
-* `boiler.retext` is the sensor on the return from the alternate heating circuit
+* `boiler.retht` is the sensor on the return from the main heating circuit
 
 ## Preferences objects
 
