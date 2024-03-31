@@ -16,10 +16,10 @@
 // spare - 12 (output only, cannot be pulled high)
 
 // Boiler Control Connections
-#define PIN_I_HW_SATISFIED 36
-#define PIN_I_HW_CALLS 39
-#define PIN_I_ZV1_READY 34
-#define PIN_I_ZV2_READY 35
+#define PIN_I_HW_SATISFIED 35
+#define PIN_I_HW_CALLS 34
+#define PIN_I_ZV1_READY 39
+#define PIN_I_ZV2_READY 36
 
 #define PIN_O_HW_CALL 32
 #define PIN_O_HW_SATISFIED 33
