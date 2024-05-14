@@ -10,15 +10,31 @@ More description, photos and screenshots coming soon.
 All requests are `GET` requests (yuk!)
 
 * `/` and `/boiler` gives current status and management controls
+
 * `/scheduler` gives html page for setting schedules
-* `/schedulerset?ch=X&day=D&slot=H:MM&state=01` for updating individual slots in schedules, day = 0-6=M-S, state = 0 or 1
-* `/schedulerset?ch=X&day=D&slot=H:MM` retrieve given schedule slot
-* `/schedulerset?ch=X&day=D` retrieve schedule for day
-* `/heat?ch=N&q=X` set timer for channel, where X is seconds to run (0=off, -1=forever)
+* `/schedset?ch=X&day=D&slot=H:MM&state=01` for updating individual slots in schedules, day = 0-6=M-S, state = 0 or 1
+* `/schedset?ch=X&day=D&slot=H:MM` retrieve given schedule slot
+* `/schedset?ch=X&day=D` retrieve schedule for day
+* `/config?name=schedule&id=N&value=X` set schedule for channel N, must be 96 0/1/2 characters
+
+* `/heat?ch=N&q=X` manual timer for channel, where X is seconds to run (0=off, -1=forever)
 * `/config?name=chactive&id=N&value=X` set channel active or inactive
-* `/config?name=warmup&id=N&value=X` set base warmup time for channel N to X seconds
-* `/config?name=targettemp&id=N` reports current target temperature for channel N
-* `/config?name=targettemp&id=N&value=X` sets target temperature for channel N
+
+* `/config?name=wuBase&id=N&value=X` set time channel starts before requested on time
+* `/config?name=wuThrsh&id=N&value=X' set temp below which channel N will start early
+* '/config?name=wuScale&id=N&value=X' set float scaling factor to calculate advance time from amount below threshold
+* '/config?name=wuLimit&id=N&value=X' set max amount channel can advance by
+
+* '/config?name=bstThrsh&id=N&value=X' set temp below which channel N will switch to boosted temperature
+
+* `/config?name=orThrsh&id=N&value=X' set temp below which channel N will finish late
+* '/config?name=orScale&id=N&value=X' set float scaling factor to calculate overrun time from amount below threshold
+* '/config?name=orLimit&id=N&value=X' set max amount channel can extend by
+
+* `/config?name=tgttmp&id=N` reports current target hot temperature for channel N
+* `/config?name=tgttmp&id=N&value=X` sets target hot temperature for channel N
+* `/config?name=tgttmp2&id=N` reports current target warm temperature for channel N
+* `/config?name=tgttmp2&id=N&value=X` sets target warm temperature for channel N
 * `/config?name=cycle&id=time&value=X` sets min off time for cycling boiler (default 120 seconds)
 * `/config?name=cycle&id=percent&value=X` sets percentage which flow must drop to end cycle (default 10%)
 
@@ -34,6 +50,11 @@ Provided by tempreporter library:
 * `/fake?id=XXX&temp=t.tt` creates fake sensor `XXX` with value `t.tt` (used for testing)
 * `/config?name=pin&id=(ds18b20|dht11)[&value=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
 * `/config?name=tr&id=X&value=T` sets enable reporting flag for temperature channel X where X is name or addr, value 0 or 1
+
+Provided by the tempfetcher library
+* `/config?name=fcst&id=rate&value=X` sets the hours between fetching forecasts
+* `/config?name=fcst&id=ahead&value=X` sets the number of hours ahead to look for lowest temperature
+* `/config?name=weather&id=url&value=x` sets the URL to retrieve weather forecasts from
 
 ## Expected sensor names
 
