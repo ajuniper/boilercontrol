@@ -324,7 +324,7 @@ static void sched_set(AsyncWebServerRequest *request) {
                 int m;
                 for (h=0; h<24; ++h) {
                     for (m=0; m<4; ++m) {
-                        z += String(channels[ch].getScheduler().get(j,h,m));
+                        z += channels[ch].getScheduler().get(j,h,m);
                         z += " ";
                     }
                 }
@@ -334,7 +334,7 @@ static void sched_set(AsyncWebServerRequest *request) {
                 rc = 200;
                 char i = 0;
                 if ((err = channels[ch].getScheduler().get(j,request->getParam("slot")->value(),i)) == NULL) {
-                    z = String(i);
+                    z = i;
                 } else {
                     z = err;
                 }
@@ -343,7 +343,7 @@ static void sched_set(AsyncWebServerRequest *request) {
                 // setting the specific slot
                 x = request->getParam("state")->value();
                 unsigned char i = x.toInt();
-                if ((err = channels[ch].getScheduler().set(j,request->getParam("slot")->value(),i+48)) == NULL) {
+                if ((err = channels[ch].getScheduler().set(j,request->getParam("slot")->value(),i)) == NULL) {
                     z = "Channel ";
                     z+=channels[ch].getName();
                     z+=" day ";
@@ -390,14 +390,15 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
 void Scheduler::readConfig()
 {
     // read saved setback config
-    mBaseWarmup = MyCfgGetInt("warmupBase", String(mChannel.getId()), mBaseWarmup);
-    mAdvanceStartTemp = MyCfgGetInt("warmupThreshold", String(mChannel.getId()), mAdvanceStartTemp);
-    mAdvanceRate = MyCfgGetInt("warmupScale", String(mChannel.getId()), mAdvanceRate);
-    mAdvanceLimit = MyCfgGetInt("warmupLimit", String(mChannel.getId()), mAdvanceLimit);
-    mRunHotterTemp = MyCfgGetInt("boostThreshold", String(mChannel.getId()), mRunHotterTemp);
-    mExtendStartTemp = MyCfgGetInt("overrunThreshold", String(mChannel.getId()), mExtendStartTemp);
-    mExtendRate = MyCfgGetInt("overrunScale", String(mChannel.getId()), mExtendRate);
-    mExtendLimit = MyCfgGetInt("overrunLimit", String(mChannel.getId()), mExtendLimit);
+    // TODO names too long
+    mBaseWarmup = MyCfgGetInt("wuBase", String(mChannel.getId()), mBaseWarmup);
+    mAdvanceStartTemp = MyCfgGetInt("wuThrsh", String(mChannel.getId()), mAdvanceStartTemp);
+    mAdvanceRate = MyCfgGetInt("wuScale", String(mChannel.getId()), mAdvanceRate);
+    mAdvanceLimit = MyCfgGetInt("wuLimit", String(mChannel.getId()), mAdvanceLimit);
+    mRunHotterTemp = MyCfgGetInt("bstThrsh", String(mChannel.getId()), mRunHotterTemp);
+    mExtendStartTemp = MyCfgGetInt("orThrsh", String(mChannel.getId()), mExtendStartTemp);
+    mExtendRate = MyCfgGetInt("orScale", String(mChannel.getId()), mExtendRate);
+    mExtendLimit = MyCfgGetInt("orLimit", String(mChannel.getId()), mExtendLimit);
 
     // read saved schedule (holds chars '0','1','2')
     String s = MyCfgGetString("schedule", String(mChannel.getId()), String());
@@ -408,7 +409,8 @@ void Scheduler::readConfig()
         for (i=0; i<7; ++i) {
             for (j=0; j<24; ++j) {
                 for (k=0; k<4; ++k) {
-                    mSchedule[i][j][k] = (*(s.c_str()+l))-48;
+                    // mSchedule always holds 0/1/2
+                    mSchedule[i][j][k] = s[l]&3;
                     ++l;
                 }
             }
@@ -612,11 +614,13 @@ void Scheduler::saveChanges()
     for(i=0; i<7; ++i) {
         for(j=0; j<24; ++j) {
             for(k=0; k<4; ++k) {
-                s+=mSchedule[i][j][k]+48;
+                char c = mSchedule[i][j][k];
+                s+=c;
             }
         }
     }
     MyCfgPutString("schedule",String(mChannel.getId()),s);
+    syslogf(LOG_DAEMON|LOG_ERR,"Saved schedule for %s",mChannel.getName());
     mLastChange = 0;
 }
 
@@ -690,6 +694,7 @@ static const char * extractTimeslot(int d, const String & hm, int &h, int &m)
     return NULL;
 }
 
+// always returns 0/1/2
 const char * Scheduler::get(int d, const String & hm, char & state) const
 {
     int h;
@@ -700,9 +705,16 @@ const char * Scheduler::get(int d, const String & hm, char & state) const
     return NULL;
 }
 
+// accepts 0/1/2 as numeric or ascii
 void Scheduler::set(int d, int h, int m, char state)
 {
-    mSchedule[d][h][m] = state;
+    if (state == '0' || state == '1' || state == '2') {
+        mSchedule[d][h][m] = state-48;
+    } else if (state == 0 || state == 1 || state == 2) {
+        mSchedule[d][h][m] = state;
+    } else {
+        return;
+    }
     mLastChange = time(NULL);
     xTaskNotifyGive( schedtask_handle );
 }
@@ -720,17 +732,17 @@ static const char * cfg_set_warmup(const char * name, const String & id, int &va
     int i = id.toInt();
     if ((i < 0) || (i >= num_heat_channels)) {
         return "Invalid channel";
-    } else if (strcmp(name, "warmupBase") == 0) {
+    } else if (strcmp(name, "wuBase") == 0) {
         channels[i].getScheduler().setWarmup(value);
-    } else if (strcmp(name, "warmupThreshold") == 0) {
+    } else if (strcmp(name, "wuThrsh") == 0) {
         channels[i].getScheduler().setAdvanceStartTemp(value);
-    } else if (strcmp(name, "warmupLimit") == 0) {
+    } else if (strcmp(name, "wuLimit") == 0) {
         channels[i].getScheduler().setAdvanceLimit(value);
-    } else if (strcmp(name, "boostThreshold") == 0) {
+    } else if (strcmp(name, "bstThrsh") == 0) {
         channels[i].getScheduler().setBoostTemp(value);
-    } else if (strcmp(name, "overrunThreshold") == 0) {
+    } else if (strcmp(name, "orThrsh") == 0) {
         channels[i].getScheduler().setExtendStartTemp(value);
-    } else if (strcmp(name, "overrunLimit") == 0) {
+    } else if (strcmp(name, "orLimit") == 0) {
         channels[i].getScheduler().setExtendLimit(value);
     } else {
         return "Invalid selector";
@@ -742,9 +754,9 @@ static const char * cfg_set_warmup_float(const char * name, const String & id, f
     int i = id.toInt();
     if ((i < 0) || (i >= num_heat_channels)) {
         return "Invalid channel";
-    } else if (strcmp(name, "warmupScale") == 0) {
+    } else if (strcmp(name, "wuScale") == 0) {
         channels[i].getScheduler().setAdvanceRate(value);
-    } else if (strcmp(name, "overrunScale") == 0) {
+    } else if (strcmp(name, "orScale") == 0) {
         channels[i].getScheduler().setExtendRate(value);
     } else {
         return "Invalid selector";
@@ -752,6 +764,7 @@ static const char * cfg_set_warmup_float(const char * name, const String & id, f
     return NULL;
 }
 
+// TODO segv's
 static const char * cfg_set_schedule(const char * name, const String & id, String &s) {
     int ch = id.toInt();
     if ((ch < 0) || (ch >= num_heat_channels)) {
@@ -763,7 +776,7 @@ static const char * cfg_set_schedule(const char * name, const String & id, Strin
         for (i=0; i<7; ++i) {
             for (j=0; j<24; ++j) {
                 for (k=0; k<4; ++k) {
-                    channels[i].getScheduler().set(i,j,k,(*(s.c_str()+l))-48);
+                    channels[i].getScheduler().set(i,j,k,s[l]);
                     ++l;
                 }
             }
@@ -780,19 +793,19 @@ void scheduler_setup() {
     server.on("/scheduler", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send_P(200, "text/html", schedpage, schedpage_processor);
     });
-    server.on("/schedulerset", HTTP_GET, sched_set);
+    server.on("/schedset", HTTP_GET, sched_set);
     xTaskCreate(scheduler_run, "scheduler", 10000, NULL, 1, &schedtask_handle);
 
-    MyCfgRegisterInt("warmupBase",&cfg_set_warmup);
-    MyCfgRegisterInt("warmupThreshold",&cfg_set_warmup);
-    MyCfgRegisterFloat("warmupScale",&cfg_set_warmup_float);
-    MyCfgRegisterInt("warmupLimit",&cfg_set_warmup);
+    MyCfgRegisterInt("wuBase",&cfg_set_warmup);
+    MyCfgRegisterInt("wuThrsh",&cfg_set_warmup);
+    MyCfgRegisterFloat("wuScale",&cfg_set_warmup_float);
+    MyCfgRegisterInt("wuLimit",&cfg_set_warmup);
 
-    MyCfgRegisterInt("boostThreshold",&cfg_set_warmup);
+    MyCfgRegisterInt("bstThrsh",&cfg_set_warmup);
 
-    MyCfgRegisterInt("overrunThreshold",&cfg_set_warmup);
-    MyCfgRegisterFloat("overrunScale",&cfg_set_warmup_float);
-    MyCfgRegisterInt("overrunLimit",&cfg_set_warmup);
+    MyCfgRegisterInt("orThrsh",&cfg_set_warmup);
+    MyCfgRegisterFloat("orScale",&cfg_set_warmup_float);
+    MyCfgRegisterInt("orLimit",&cfg_set_warmup);
 
     MyCfgRegisterString("schedule",&cfg_set_schedule);
 }
