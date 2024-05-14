@@ -84,7 +84,6 @@ static bool handle_press_active(int a_h, time_t a_duration)
     if (a_duration > 1) {
         bool a = !channels[a_h].getActive();
         channels[a_h].setActive(a);
-        MyCfgPutInt("name", String(a_h), a);
         return true;
     }
     return false;
