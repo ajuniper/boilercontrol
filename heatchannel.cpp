@@ -216,8 +216,8 @@ bool HeatChannel::canCooldown() const {
 
 void HeatChannel::readConfig()
 {
-    m_target_temp1 = MyCfgGetInt("targettemp",String(m_id), m_target_temp1);
-    m_target_temp2 = MyCfgGetInt("targettemp2",String(m_id), m_target_temp2);
+    m_target_temp1 = MyCfgGetInt("tgttmp",String(m_id), m_target_temp1);
+    m_target_temp2 = MyCfgGetInt("tgttmp2",String(m_id), m_target_temp2);
     m_active = MyCfgGetInt("chactive",String(m_id), m_active);
 }
 
@@ -261,7 +261,7 @@ HeatChannel channels[num_heat_channels] = {
 static const char * cfg_set_targettemp(const char * name, const String & id, int &value) {
     int ch = id.toInt();
     if ((ch >= 0) && (ch <= num_heat_channels)) {
-        if (name == "targettemp2") {
+        if (name == "tgttmp2") {
             channels[ch].setTargetTemp2(value);
         } else {
             channels[ch].setTargetTemp1(value);
@@ -311,8 +311,8 @@ void heatchannel_setup() {
     }
     scheduler_setup();
     xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
-    MyCfgRegisterInt("targettemp",&cfg_set_targettemp);
-    MyCfgRegisterInt("targettemp2",&cfg_set_targettemp);
+    MyCfgRegisterInt("tgttmp",&cfg_set_targettemp);
+    MyCfgRegisterInt("tgttmp2",&cfg_set_targettemp);
     MyCfgRegisterInt("chactive",&cfg_set_active);
 }
 
@@ -429,11 +429,14 @@ void HeatChannel::setTargetTempBySetting(int target) {
     }
 }
 
-void HeatChannel::setActive(bool a) {
+void HeatChannel::setActive(bool a, bool updateConfig) {
     if (!a) {
         m_endtime = 0;
         m_cooldown_time = 0;
     }
     m_active = a;
     m_changed = true;
+    if (updateConfig) {
+        MyCfgPutInt("chactive", String(m_id), a);
+    }
 };

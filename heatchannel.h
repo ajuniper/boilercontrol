@@ -55,7 +55,7 @@ public:
     const char * getName() { return m_name; }
     bool getEnabled() { return m_enabled; }
     bool getActive() const { return m_enabled && m_active; };
-    void setActive(bool a);
+    void setActive(bool a, bool updateConfig=false);
     time_t getTimer() { return m_endtime; }
     unsigned long getCooldown() { return m_cooldown_time; }
     bool getOutput() { return m_enabled && m_zv_output; }
