@@ -46,10 +46,9 @@ Provided by the updater library:
 Provided by tempreporter library:
 * `/temperatures` reports current DS18B20 readings
 * `/api?id=XXX` reports current temperature for sensor named `XXX`
-* `/config?name=remap&id=XXX&value=YYY` sets name of sensor `XXX` to `YYY` (where `XXX` is typically sensor MAC address)
+* `/config?name=trremap&id=X&value=AAA+NNN+DIS` sets name of sensor `AAA` to `NNN` (where `XXX` is typically sensor MAC address), optionally disables
 * `/fake?id=XXX&temp=t.tt` creates fake sensor `XXX` with value `t.tt` (used for testing)
-* `/config?name=pin&id=(ds18b20|dht11)[&value=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
-* `/config?name=tr&id=X&value=T` sets enable reporting flag for temperature channel X where X is name or addr, value 0 or 1
+* `/config?name=trpin&id=(18b20|dht11)[&value=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
 
 Provided by the tempfetcher library
 * `/config?name=fcst&id=rate&value=X` sets the hours between fetching forecasts
@@ -97,3 +96,10 @@ schedule.[ch]
       * label
         * checkbox value="hh:mm"
 ...
+
+## configuring temperature sensors
+```
+curl -s 'http://boiler/config?name=trremap&id=0&value=28-ff641f79b51c46+boiler.flow+1'
+curl -s 'http://boiler/config?name=trremap&id=1&value=28-ff641f79b7e8c2+boiler.rethw+1'
+curl -s 'http://boiler/config?name=trremap&id=2&value=28-ff641f79b7e8c2+boiler.rethw+1'
+```
