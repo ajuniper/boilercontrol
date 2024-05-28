@@ -98,7 +98,7 @@ var currschedule=[];
 
 async function loadSchedule() {
     // unix time is Sunday=0 but ui is Monday=0/Sunday=6
-    var u = "schedulerset?ch="+selectedCh+"&day="+((selectedDay+1)%%7)
+    var u = "schedset?ch="+selectedCh+"&day="+((selectedDay+1)%%7)
     var a = await fetch(u,{method:'get'})
     var b = await a.text()
     var c = b.split(' ').map(Number);
@@ -117,7 +117,7 @@ async function loadSchedule() {
 }
 
 async function saveScheduleCheckbox(ch,day,e) {
-    var u = "schedulerset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.id+"&state="+e.getAttribute("data-temp");
+    var u = "schedset?ch="+ch+"&day="+((day+1)%%7)+"&slot="+e.id+"&state="+e.getAttribute("data-temp");
     return await fetch(u,{method:'get'})
 }
 
@@ -166,7 +166,7 @@ function clickDay(evt, daynum) {
 }
 
 function clickDone() {
-    location.href="/";
+    location.href="boiler";
 }
 
 async function copyForwards() {
@@ -324,17 +324,19 @@ static void sched_set(AsyncWebServerRequest *request) {
                 int m;
                 for (h=0; h<24; ++h) {
                     for (m=0; m<4; ++m) {
-                        z += channels[ch].getScheduler().get(j,h,m);
+                        // convert to character
+                        z += ((char)(channels[ch].getScheduler().get(j,h,m)+48));
                         z += " ";
                     }
                 }
 
             } else if (!request->hasParam("state")) {
+                // we have a slot but no new state for it, so just
                 // serve current state of scheduler slot
                 rc = 200;
                 char i = 0;
                 if ((err = channels[ch].getScheduler().get(j,request->getParam("slot")->value(),i)) == NULL) {
-                    z = i;
+                    z = ((char)(i+48));
                 } else {
                     z = err;
                 }
@@ -610,11 +612,13 @@ void Scheduler::saveChanges()
     if (mLastChange == 0) { return; }
     String s;
     int i,j,k;
+    char c[2];
+    c[1] = 0;
     // save to preferences (holds chars '0','1','2')
     for(i=0; i<7; ++i) {
         for(j=0; j<24; ++j) {
             for(k=0; k<4; ++k) {
-                char c = mSchedule[i][j][k];
+                c[0] =(mSchedule[i][j][k]+48);
                 s+=c;
             }
         }
@@ -764,7 +768,6 @@ static const char * cfg_set_warmup_float(const char * name, const String & id, f
     return NULL;
 }
 
-// TODO segv's
 static const char * cfg_set_schedule(const char * name, const String & id, String &s) {
     int ch = id.toInt();
     if ((ch < 0) || (ch >= num_heat_channels)) {
@@ -776,7 +779,8 @@ static const char * cfg_set_schedule(const char * name, const String & id, Strin
         for (i=0; i<7; ++i) {
             for (j=0; j<24; ++j) {
                 for (k=0; k<4; ++k) {
-                    channels[i].getScheduler().set(i,j,k,s[l]);
+                    syslogf("set ch %d day %d hh %d mm %d to offs %d value %d\n",ch,i,j,k,l,s[l]);
+                    channels[ch].getScheduler().set(i,j,k,s[l]);
                     ++l;
                 }
             }
