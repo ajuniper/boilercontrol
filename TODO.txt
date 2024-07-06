@@ -10,20 +10,13 @@ tempchannel to have multiple temps
 . heating advance
 . heating extend
 . heating boost
-# lcd active does not save to config
-# scheduler config nodes name too long
-# why is pump relay not firing?
-# set full schedule to config causes segv (add printf)
 . cycle based on return temp + min off time
-. scheduler done link does not go back to home page
 
 FIX
-. watchdog reboots when first starting
 . if shorten schedule then need to recalculate
 . extend manual heating via web does not update target temp
 . rewire mains to boiler correctly
 . touch screen flaky
-. clock refresh flicker
 # when web sets warm/hot, display should update
 # no clock until wifi joined
 * target temp defaults to 0
@@ -117,3 +110,9 @@ temperature fetching
 # schedule does not load from config / save to config (rejected by mycfg)
   (maybe try putData / getData or RLE)
 # tempreporter remap config names too long
+# scheduler config nodes name too long
+# set full schedule to config causes segv (add printf)
+. scheduler done link does not go back to home page
+# lcd active does not save to config
+. watchdog reboots when first starting - TR task - fixed?
+. clock refresh flicker
