@@ -83,7 +83,7 @@ static bool handle_press_active(int a_h, time_t a_duration)
     if (!channels[a_h].getEnabled()) { return false; }
     if (a_duration > 1) {
         bool a = !channels[a_h].getActive();
-        channels[a_h].setActive(a);
+        channels[a_h].setActive(a,true);
         return true;
     }
     return false;
@@ -93,7 +93,7 @@ static bool handle_release_active(int a_h, time_t a_duration)
 {
     if (!channels[a_h].getEnabled()) { return false; }
     if (a_duration < 2) {
-        channels[a_h].setActive(!channels[a_h].getActive());
+        channels[a_h].setActive(!channels[a_h].getActive(),true);
     }
     return false;
 }
