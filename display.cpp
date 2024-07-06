@@ -18,19 +18,38 @@ TFT_eSPI tft = TFT_eSPI();
 //
 // update clock and IP
 
+int last_min = -1;
+
 static void print_clock() {
     struct tm timeinfo;
-    getLocalTime(&timeinfo);
 #define dt_len 21
     char dt[dt_len];
-    ssize_t l = strftime(dt,dt_len,"%a %H %M",&timeinfo);
-    if (timeinfo.tm_sec % 2) {
-        dt[6]=':';
-    }
-
+    getLocalTime(&timeinfo);
     tft.setFreeFont(clock_font);
-    tft.setTextColor(clock_colour,TFT_BLACK);
-    tft.drawString(dt,clock_x,clock_y,fontnum);
+    tft.setTextColor(clock_colour,TFT_BLACK,true);
+    if (timeinfo.tm_min != last_min) {
+        // update the whole time string if the minute changes
+        last_min = timeinfo.tm_min;
+        strftime(dt,dt_len,"%a %H %M",&timeinfo);
+        if (timeinfo.tm_sec % 2) {
+            dt[6]=':';
+        }
+
+        tft.drawString(dt,clock_x,clock_y,fontnum);
+    } else {
+        // just update the colon
+        if (timeinfo.tm_sec % 2) {
+            dt[0]=':';
+            dt[1]=0;
+            tft.drawString(dt,clock_x-47,clock_y,fontnum);
+        } else {
+            // bodge around library bug which does not draw a single space
+            dt[0]=' ';
+            dt[1]=' ';
+            dt[2]=0;
+            tft.drawString(dt,clock_x-40,clock_y,fontnum);
+        }
+    }
 
     if (WiFi.status() == WL_CONNECTED) {
         snprintf(dt,dt_len,"%16s",WiFi.localIP().toString().c_str());
