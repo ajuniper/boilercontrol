@@ -441,7 +441,7 @@ time_t Scheduler::getWarmup() const {
 // run longer
 //   if temp < t3 then extend duration by min(((temp - t3) * m),limit)
 time_t Scheduler::getExtend() const {
-    int adj;
+    int adj = 0;
     int temp = tempsensors_get("forecast.low");
     if (temp <= mExtendStartTemp) {
         adj = round(((float)(mExtendStartTemp - temp)) * mExtendRate);
@@ -779,7 +779,7 @@ static const char * cfg_set_schedule(const char * name, const String & id, Strin
         for (i=0; i<7; ++i) {
             for (j=0; j<24; ++j) {
                 for (k=0; k<4; ++k) {
-                    syslogf("set ch %d day %d hh %d mm %d to offs %d value %d\n",ch,i,j,k,l,s[l]);
+                    //syslogf("set ch %d day %d hh %d mm %d to offs %d value %d\n",ch,i,j,k,l,s[l]);
                     channels[ch].getScheduler().set(i,j,k,s[l]);
                     ++l;
                 }
