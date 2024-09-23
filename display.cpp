@@ -13,6 +13,9 @@ TFT_eSPI tft = TFT_eSPI();
 #include "tempsensors.h"
 #include "heatchannel.h"
 #include "outputs.h"
+#include "mysyslog.h"
+
+bool display_needs_reset = false;
 
 //////////////////////////////////////////////////////////////////
 //
@@ -125,10 +128,12 @@ static void draw_temperatures() {
     tft.setTextColor(temp_colour,TFT_BLACK);
     for (i=0; i<num_temps; ++i) {
         int t = temperatures[i].getTemp();
-        if (t != 999) {
-            sprintf(m,"%3dC",t);
-        } else {
+        if (t == 999) {
             sprintf(m," ---");
+        } else {
+            // fix up bogus readings
+            if (t < -99) t = -99;
+            sprintf(m,"%3dC",t);
         }
         tft.drawString(m,x,temp_y,1);
         x+=temp_x;
@@ -151,9 +156,6 @@ static void update_display() {
 
     int i;
     for(i=0; i<num_heat_channels; ++i) {
-        // what was this code for and is it still required?
-        //time_t t = channels[i].getTimer();
-        //if ((t > 0) && (t < time(NULL))) { channels[i].adjustTimer(0); }
         channels[i].updateDisplay();
     }
 }
@@ -194,46 +196,7 @@ static void wait_for_touch() {
 // time of last change of touch
 static time_t last_touch = 0;
 
-// main display update task
-static void displaytask(void*) {
-    while(1) {
-        time_t now = time(NULL);
-
-        // wait for a valid time to be set
-        if (last_touch == 0) {
-            if (now > 100000) {
-                last_touch = now;
-            } else {
-                delay(100);
-                continue;
-            }
-        }
-
-        // no touches so stop showing until touch
-        if ((now - last_touch) > display_sleep) {
-            wait_for_touch();
-            now = time(NULL);
-            last_touch = now;
-        }
-
-        // handle any touches
-        bool touched = check_touch();
-        if (touched) {
-            last_touch = time(NULL);
-        }
-        // if display touch changed or >1s passes then update
-        if (touched || (lastsec != now)) {
-            update_display();
-            lastsec = now;
-        }
-
-        // wait a while
-        delay(touch_delay);
-    }
-}
-
-void display_init() {
-
+static void display_reset() {
     // display IRQ is an input
     pinMode(PIN_TOUCH_IRQ, INPUT_PULLUP);
 
@@ -272,5 +235,57 @@ void display_init() {
         tft.drawString(m,x,temp_y-10,1);
         x+=temp_x;
     }
+    last_touch = 0;
+    display_needs_reset = false;
+}
+
+// main display update task
+static void displaytask(void*) {
+    while(1) {
+        time_t now = time(NULL);
+
+        if (display_needs_reset) {
+            syslogf("Resetting display");
+            display_reset();
+            delay(1000);
+            continue;
+        }
+
+        // wait for a valid time to be set
+        if (last_touch == 0) {
+            if (now > 100000) {
+                last_touch = now;
+            } else {
+                delay(100);
+                continue;
+            }
+        }
+
+        // no touches so stop showing until touch
+        if ((now - last_touch) > display_sleep) {
+            wait_for_touch();
+            now = time(NULL);
+            last_touch = now;
+        }
+
+        // handle any touches
+        bool touched = check_touch();
+        if (touched) {
+            last_touch = time(NULL);
+        }
+        // if display touch changed or >1s passes then update
+        if (touched || (lastsec != now)) {
+            update_display();
+            lastsec = now;
+        }
+
+        // wait a while
+        delay(touch_delay);
+    }
+}
+
+void display_init() {
+
+    display_reset();
     xTaskCreate(displaytask, "displaytask", 10000, NULL, 1, &displaytask_handle);   
 }
