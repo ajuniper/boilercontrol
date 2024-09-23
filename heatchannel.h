@@ -4,6 +4,7 @@
 #pragma once
 #include "mainsdetect.h"
 #include "scheduler.h"
+#include "scheduledoutput.h"
 
 class HeatChannel {
 private:
@@ -21,8 +22,8 @@ private:
     int m_cooldown_duration;
     int m_endtime;
     int m_cooldown_time;
-    bool m_zv_output;
-    bool m_zv_satisfied_output;
+    ScheduledOutput m_zv_output;
+    ScheduledOutput m_zv_satisfied_output;
     bool m_changed;
     time_t m_lastTime;
     Scheduler m_scheduler;
@@ -64,8 +65,12 @@ public:
     MainsDetect & getInputSatisfied() { return m_satisfied; }
     void adjustTimer(int dt);
     // set the output state to the zv
-    void setOutput(bool state);
-    void setSatisfied(bool state);
+    void setOutput(bool state, time_t when = 0);
+    void setSatisfied(bool state, time_t when = 0);
+    // update the output pin as required, and
+    // return true if change is scheduled, false otherwise
+    bool setOutputPin(time_t now);
+    bool setSatisfiedPin(time_t now);
     // returns current target temp
     int targetTemp() const { return m_target_temp; }
     // return configured target temperatures
@@ -97,6 +102,11 @@ public:
     time_t lastTime() { return m_lastTime; }
     Scheduler & getScheduler() { return m_scheduler; }
 };
+
+// values for use with adjustTimer
+#define CHANNEL_TIMER_OFF 0
+#define CHANNEL_TIMER_ON -1
+#define CHANNEL_TIMER_SLUDGE -2
 
 #define num_heat_channels 2
 extern HeatChannel channels[];
