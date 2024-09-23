@@ -11,8 +11,6 @@
 #include "tempsensors.h"
 #include "tempfetcher.h"
 
-extern bool o_pump_on;
-extern bool o_boiler_on;
 extern int target_temp;
 
 static const char statuspage[] PROGMEM = R"rawliteral(
@@ -70,15 +68,15 @@ static String statuspage_processor(const String& var){
             // timer
             t = channels[i].getTimer();
             switch (t) {
-                case 0:
+                case CHANNEL_TIMER_OFF:
                     s += "Off";
                     // cooldown
                     t = channels[i].getCooldown();
                     switch (t) {
-                        case 0:
+                        case CHANNEL_TIMER_OFF:
                             // cooldown off, say nothing
                             break;
-                        case -1: // shouldn't happen
+                        case CHANNEL_TIMER_ON: // shouldn't happen
                             s += " (cooling)";
                             break;
                         default:
@@ -87,7 +85,7 @@ static String statuspage_processor(const String& var){
                             s+=")";
                     }
                     break;
-                case -1:
+                case CHANNEL_TIMER_ON:
                     s += "On";
                     break;
                 default:
@@ -128,14 +126,14 @@ static String statuspage_processor(const String& var){
                 s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600&t=1\">+1h</a> ";
                 s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200&t=1\">+2h</a> ";
                 s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=1\">+3h</a> ";
-                s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1&t=1\">On</a> ";
+                s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+= CHANNEL_TIMER_ON ; s+="&t=1\">On</a> ";
                 s+="<br/>Hot: ";
             }
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600&t=2\">+1h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200&t=2\">+2h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=2\">+3h</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=-1&t=2\">On</a><br/>";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=0\">Off</a> ";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_ON ; s+="&t=2\">On</a><br/>";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_OFF ; s+="\">Off</a> ";
             s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=0\">Disable</a> ";
         } else {
             s+="<a href=\"config?name=chactive&id=";
