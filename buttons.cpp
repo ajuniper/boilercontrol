@@ -12,6 +12,8 @@
 // are we asking for hot or warm heat?
 static bool selected_temperatures[num_heat_channels];
 
+extern bool display_needs_reset;
+
 void button_t::initialise()
 {
 #if 0
@@ -105,9 +107,9 @@ static bool handle_press_timer(int a_h, time_t a_duration)
     if (a_duration > 2) {
         if (channels[a_h].getTimer() == 0) {
             channels[a_h].setTargetTempBySetting(selected_temperatures[a_h]?1:2);
-            channels[a_h].adjustTimer(-1);
+            channels[a_h].adjustTimer(CHANNEL_TIMER_ON);
         } else {
-            channels[a_h].adjustTimer(0);
+            channels[a_h].adjustTimer(CHANNEL_TIMER_OFF);
         }
         return true;
     }
@@ -121,12 +123,25 @@ static bool handle_release_timer(int a_h, time_t a_duration)
     if (a_duration < 3) {
         if (channels[a_h].getTimer() == -1) {
             // short press when fixed on means turn off
-            channels[a_h].adjustTimer(0);
+            channels[a_h].adjustTimer(CHANNEL_TIMER_OFF);
         } else {
             // else short press means add a bit of time
             channels[a_h].setTargetTempBySetting(selected_temperatures[a_h]?1:2);
             channels[a_h].adjustTimer(timer_increment);
         }
+    }
+    return false;
+}
+
+static bool handle_dr_press(int , time_t )
+{
+    return false;
+}
+
+static bool handle_dr_release (int , time_t a_duration)
+{
+    if (a_duration >= 5) {
+        display_needs_reset = true;
     }
     return false;
 }
@@ -150,10 +165,12 @@ button_t buttons[] = {
       ch_y(channel_y + 1*channel_spacing,channel_icon_size),
       channel_label_w, channel_icon_size,
       &handle_press_label, &handle_release_label, 1 },
+    /*
     { ch_x(channel_label_x,channel_label_w),
       ch_y(channel_y + 2*channel_spacing,channel_icon_size),
       channel_label_w, channel_icon_size,
       &handle_press_label, &handle_release_label, 2 },
+     */
 
     { ch_x(channel_active_x,channel_active_w),
       ch_y(channel_y + 0*channel_spacing,channel_icon_size),
@@ -163,10 +180,12 @@ button_t buttons[] = {
       ch_y(channel_y + 1*channel_spacing,channel_icon_size),
       channel_active_w, channel_icon_size,
       &handle_press_active, &handle_release_active, 1 },
+    /*
     { ch_x(channel_active_x,channel_active_w),
       ch_y(channel_y + 2*channel_spacing,channel_icon_size),
       channel_active_w, channel_icon_size,
       &handle_press_active, &handle_release_active, 2 },
+     */
 
     { ch_x(channel_timer_x,channel_timer_w),
       ch_y(channel_y + 0*channel_spacing,channel_icon_size),
@@ -176,11 +195,15 @@ button_t buttons[] = {
       ch_y(channel_y + 1*channel_spacing,channel_icon_size),
       channel_timer_w, channel_icon_size,
       &handle_press_timer, &handle_release_timer, 1 },
+    /*
     { ch_x(channel_timer_x,channel_timer_w),
       ch_y(channel_y + 2*channel_spacing,channel_icon_size),
       channel_timer_w, channel_icon_size,
-      &handle_press_timer, &handle_release_timer, 2 }
+      &handle_press_timer, &handle_release_timer, 2 },
+     */
 
+    // invisible button bottom left to reset display
+    { 0, 220, 20, 20, &handle_dr_press, &handle_dr_release, 0 }
 };
 const size_t num_buttons = (sizeof(buttons)/sizeof(buttons[0]));
 
