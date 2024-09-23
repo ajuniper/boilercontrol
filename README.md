@@ -101,5 +101,5 @@ schedule.[ch]
 ```
 curl -s 'http://boiler/config?name=trremap&id=0&value=28-ff641f79b51c46+boiler.flow+1'
 curl -s 'http://boiler/config?name=trremap&id=1&value=28-ff641f79b7e8c2+boiler.rethw+1'
-curl -s 'http://boiler/config?name=trremap&id=2&value=28-ff641f79b7e8c2+boiler.rethw+1'
+curl -s 'http://boiler/config?name=trremap&id=2&value=28-ff641f79b7d4df+boiler.retht+1'
 ```
