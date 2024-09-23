@@ -12,13 +12,14 @@
 #include <mywebserver.h>
 #include <webupdater.h>
 #include <myconfig.h>
+#include "scheduledoutput.h"
 
 // task to update outputs
 static TaskHandle_t outputtask_handle = NULL;
 
 // last output state
-bool o_pump_on = false;
-bool o_boiler_on = false;
+ScheduledOutput o_pump_on;
+ScheduledOutput o_boiler_on;
 t_output_state o_boiler_state;
 t_output_state o_pump_state;
 int target_temp = 999;
@@ -103,9 +104,9 @@ static void output_task (void *)
 
     // cache the requested output settings
     // only update when we are signalled
-    bool last_pump = o_pump_on;
-    bool last_boiler = o_boiler_on;
-    bool this_boiler = o_boiler_on;
+    bool last_boiler = false;
+    bool this_boiler = false;
+    bool this_pump = false;
     int last_target_temp = target_temp;
     time_t boiler_cycle_time = 0;
     int hysteresis = 100 - 10;
@@ -118,11 +119,19 @@ static void output_task (void *)
             time_t now = time(NULL);
             int flow_temp = tempsensors_get("boiler.flow");
 
+            this_boiler = o_boiler_on.checkState(now);
+            if (last_boiler != this_boiler) {
+                if (this_boiler == true) {
+                    syslogf(LOG_DAEMON | LOG_WARNING, "Boiler can fire, temp now %dC",tempsensors_get("boiler.flow"));
+                }
+                last_boiler = this_boiler;
+                boiler_cycle_time = 0;
+            }
+
             // recalculate whether the boiler should be running or not
             // this is where we are cycling the boiler to temperature
-            if (last_boiler == false) {
+            if (this_boiler == false) {
                 // boiler is requested off
-                this_boiler = false;
                 boiler_cycle_time = 0;
                 waittime = 3600 * 1000; // 1hr
                 o_boiler_state = OUTPUT_OFF;
@@ -131,7 +140,8 @@ static void output_task (void *)
                 // boiler is already cycled off by time so nothing to do
                 // just wait until the end of the cycle window unless
                 // something changes in the mean time
-                waittime = boiler_cycle_time - now;
+                waittime = (boiler_cycle_time - now) * 1000;
+                this_boiler = false;
 
             } else if ((boiler_cycle_time != 0) &&
                        (flow_temp > ((last_target_temp * hysteresis)/100))) {
@@ -139,6 +149,7 @@ static void output_task (void *)
                 // just wait a few seconds and check again unless
                 // something changes in the mean time
                 waittime = 10000;
+                this_boiler = false;
 
             } else if (flow_temp > last_target_temp) {
                 // boiler just went over temperature
@@ -162,7 +173,7 @@ static void output_task (void *)
                 o_boiler_state = OUTPUT_COOLING;
 
             } else {
-                this_boiler = true;
+                // boiler should be on
                 o_boiler_state = OUTPUT_HEATING;
                 if (boiler_cycle_time != 0) {
                     // boiler just finished cycling
@@ -171,22 +182,47 @@ static void output_task (void *)
                 }
             }
 
-            // TODO wait for mains to be at 0v
+            // calculate what the pump should be doing
+            if (o_pump_on.checkState(now)) {
+                this_pump = true;
+                // update what the pump is doing
+                // if boiler is on or cycling then we are heating
+                o_pump_state = (o_boiler_state == OUTPUT_OFF)?OUTPUT_COOLING:OUTPUT_HEATING;
+            } else {
+                // pump is not on
+                this_pump = false;
+                o_pump_state = OUTPUT_OFF;
+            }
+
             // update the outputs
-            digitalWrite(PIN_O_PUMP_ON, last_pump?RELAY_ON:RELAY_OFF);
+            digitalWrite(PIN_O_PUMP_ON, this_pump?RELAY_ON:RELAY_OFF);
             digitalWrite(PIN_O_BOILER_ON, this_boiler?RELAY_ON:RELAY_OFF);
 
+            int i;
+            for (i=0; i<num_heat_channels; ++i) {
+                if (channels[i].setOutputPin(now)) {
+                    waittime = min((TickType_t(500)), waittime);
+                }
+                if (channels[i].setSatisfiedPin(now)) {
+                    waittime = min((TickType_t(500)), waittime);
+                }
+            }
+
+            // if change is coming then be ready for it
+            if (o_boiler_on.nextChange() > 0) {
+                waittime = min((TickType_t(500)), waittime);
+            }
+            if (o_pump_on.nextChange() > 0) {
+                waittime = min((TickType_t(500)), waittime);
+            }
+            // wait for something to change, either demand state or
+            // calculated time period elapsed
             n = ulTaskNotifyTake( pdTRUE, pdMS_TO_TICKS( waittime) );
+
+            // n==0 indicates timeout, else signalled
         } // end of wait for signal/timeout
 
-        last_pump = o_pump_on;
-        if (last_boiler != o_boiler_on) {
-            if (o_boiler_on) {
-                syslogf(LOG_DAEMON | LOG_WARNING, "Turning boiler on, temp now %dC",tempsensors_get("boiler.flow"));
-            }
-            last_boiler = o_boiler_on;
-            boiler_cycle_time = 0;
-        }
+        // drop out of loop if signalled that demand state changed
         last_target_temp = target_temp;
         if (last_target_temp == 999) { last_target_temp = 0; }
     }
@@ -201,6 +237,8 @@ void loop() {
     unsigned long millinow = millis();
     bool changed = false;
     int i;
+    // TODO
+    bool l_boiler_on;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     // check timers
@@ -213,30 +251,19 @@ void loop() {
 
     if (changed) {
         bool calling = false;
-        o_pump_on = false;
-        o_boiler_on = false;
         target_temp = 0;
 
         // see what is ready for action
         for (i=0; i<num_heat_channels; ++i) {
             if (channels[i].wantFire()) {
                 calling |= true;
-                syslogf(LOG_DAEMON|LOG_INFO,"%s is ready",channels[i].getName());
-                if (channels[i].canFire()) {
-                    // something is asking for heat
-                    o_pump_on = true;
-                    o_boiler_on = true;
-                    // boiler state is controlled from output handler
-                    int t = channels[i].targetTemp();
-                    if (t > target_temp) { target_temp = t; }
-                    syslogf(LOG_DAEMON | LOG_WARNING, "Run pump and boiler to %dC",target_temp);
-                }
             }
         }
         // 999 is rendered as --- on the display
         if (target_temp == 0) { target_temp = 999; }
         if (calling) {
             // something is calling for heat
+            int tt = 0;
 
             // action the satisfied relays
             // if we get to this loop then something IS calling for fire
@@ -245,30 +272,35 @@ void loop() {
                 // we must set satisfied to indicate to not send heat to this channel
                 // if the channel is satisfied or this channel is not asking for heat
                 // (which can include cooldown too)
+                // these changes are start-of-sequence so happen immediately
                 channels[i].setSatisfied((!channels[i].canFire()) || channels[i].isSatisfied());
-            }
-            // TODO delay needed?
-
-            // action the zone valves
-            for (i=0; i<num_heat_channels; ++i) {
+                // action the zone valves
                 channels[i].setOutput(channels[i].wantFire());
             }
 
-            // update what the pump is doing
-            o_pump_state = o_pump_on?OUTPUT_HEATING:OUTPUT_OFF;
-            // boiler state is controlled by output task
+            // turn the pump and boiler on as required
+            for (i=0; i<num_heat_channels; ++i) {
+                if (channels[i].wantFire()) {
+                    syslogf(LOG_DAEMON|LOG_INFO,"%s is ready",channels[i].getName());
+                    // have to wait for ack from zv before firing
+                    if (channels[i].canFire()) {
+                        // something is asking for heat
+                        tt = max(tt, channels[i].targetTemp());
+                        // give the pump and boiler time for the zv to be in place
+                        o_pump_on.setState(true, now+3);
+                        o_boiler_on.setState(true,now+6);
+                        syslogf(LOG_DAEMON | LOG_WARNING, "Run pump and boiler to %dC",tt);
+                    }
+                }
+            }
+            target_temp = tt;
+
         } else {
             // nothing asking for heat, what about cooldown?
             calling = false;
             for (i=0; i<num_heat_channels; ++i) {
                 if (channels[i].wantCooldown()) {
                     calling |= true;
-                    syslogf(LOG_DAEMON|LOG_INFO,"%s is ready for cooldown",channels[i].getName());
-                    if (channels[i].canCooldown()) {
-                        o_pump_on = true;
-                        o_pump_state = OUTPUT_COOLING;
-                        syslogf(LOG_DAEMON | LOG_WARNING, "Run pump for cooldown");
-                    }
                 }
             }
 
@@ -276,28 +308,42 @@ void loop() {
                 // something is asking for cooldown
                 // this ensures other ZVs are closed
 
-                // action the satisfied relays
+                // action the satisfied relays immediately
                 for (i=0; i<num_heat_channels; ++i) {
                     channels[i].setSatisfied(channels[i].isSatisfied());
                 }
-                // TODO delay needed?
 
+                // set the zone valves immediately
                 for (i=0; i<num_heat_channels; ++i) {
                     channels[i].setOutput(channels[i].wantCooldown());
                 }
+
+                // and set the pump/boiler
+                // boiler defaults to off anyway, pump should already be on
+                for (i=0; i<num_heat_channels; ++i) {
+                    if (channels[i].wantCooldown()) {
+                        syslogf(LOG_DAEMON|LOG_INFO,"%s is ready for cooldown",channels[i].getName());
+                    }
+                }
+
+                syslogf(LOG_DAEMON | LOG_WARNING, "Run pump for cooldown");
+                o_boiler_on.setState(false);
+                o_pump_on.setState(true,now+3);
             } else {
                 // nothing on
-                o_pump_state = OUTPUT_OFF;
+
+                o_boiler_on.setState(false);
+                // give the boiler a chance to stop before stopping the pump
+                o_pump_on.setState(false,now+3);
 
                 // action the satisfied relays to off, not needed
                 for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setSatisfied(false);
+                    channels[i].setSatisfied(false,now+6);
                 }
-                // TODO delay needed?
 
                 // action the zone valves to off
                 for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setOutput(false);
+                    channels[i].setOutput(false,now+6);
                 }
 
                 syslogf(LOG_DAEMON | LOG_WARNING, "Pump and boiler off");
@@ -307,7 +353,8 @@ void loop() {
         // set system outputs - via task to deal with mains sync
         // TODO should setting outputs be synchronised with setting outputs
         xTaskNotifyGive( outputtask_handle );
-    }
+
+    } // end of something changed
 
     // wait a while
     delay(50);
