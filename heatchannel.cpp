@@ -99,7 +99,7 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
 }
 void HeatChannel::adjustTimer(int dt) {
     switch (dt) {
-        case 0:
+        case CHANNEL_TIMER_OFF:
             // turn off
             if (m_endtime != 0) {
                 // channel is running so set end time to
@@ -110,12 +110,12 @@ void HeatChannel::adjustTimer(int dt) {
                 m_cooldown_time = time(NULL)-1;
             }
             break;
-        case -1:
+        case CHANNEL_TIMER_ON:
             // turn on
             m_cooldown_time = 0;
             m_endtime = dt;
             break;
-        case -2:
+        case CHANNEL_TIMER_SLUDGE:
             // run cooldown cycle to circulate sludge
             m_cooldown_time = 0;
             m_endtime = time(NULL)-1;
@@ -123,42 +123,73 @@ void HeatChannel::adjustTimer(int dt) {
         default:
             // turn on for given seconds
             m_cooldown_time = 0;
-            if (m_endtime == 0) {
-                // currently off so calculate absolute off time
-                m_endtime = time(NULL) + dt;
-            } else if (m_endtime == -1) {
-                // noop, already fixed on
-            } else if (m_endtime > 0) {
-                m_endtime += dt;
+            if (dt < 1000000000) {
+                // delta
+                if (m_endtime == 0) {
+                    // currently off so calculate absolute off time
+                    m_endtime = time(NULL) + dt;
+                } else if (m_endtime == CHANNEL_TIMER_ON) {
+                    // noop, already fixed on
+                } else {
+                    m_endtime += dt;
+                }
+            } else {
+                // absolute value, just save it
+                m_endtime = dt;
             }
     }
     syslogf(LOG_DAEMON | LOG_INFO, "%s set to %d",m_name,m_endtime);
     m_changed = true;
+    // update the last activity time here to hold off the sludge buster otherwise the sludge
+    // buster triggers before the main task stops the burner
+    m_lastTime = time(NULL);
 }
 // set the output state to the zv
-void HeatChannel::setOutput(bool state) {
-    if (m_enabled == true && m_pin_zv > -1) {
-        if ((state == false) && (m_pin_zv_satisfied > -1)) {
-            // if the channel is off then it is satisfied
-            //digitalWrite(m_pin_zv_satisfied,RELAY_ON);
-        }
-        digitalWrite(m_pin_zv,state?RELAY_ON:RELAY_OFF);
-        if (m_zv_output != state) {
-            syslogf(LOG_DAEMON | LOG_INFO, "%s output set to %s",m_name,state?"on":"off");
-        }
-        m_zv_output = state;
+void HeatChannel::setOutput(bool state, time_t when) {
+    if ((m_enabled == false ) || (m_pin_zv == -1)) {
+        return;
+    }
+    if (state != m_zv_output.setState(state,when)) {
+        syslogf(LOG_DAEMON | LOG_INFO, "%s request output set to %s at %d",m_name,state?"on":"off",when);
     }
 }
-void HeatChannel::setSatisfied(bool state) {
-    if (m_enabled == true) {
-        if (m_pin_zv_satisfied > -1) {
-            digitalWrite(m_pin_zv_satisfied,state?RELAY_ON:RELAY_OFF);
-        }
-        if (m_zv_satisfied_output != state) {
-            syslogf(LOG_DAEMON | LOG_INFO, "%s satisfied set to %s",m_name,state?"on":"off");
-        }
-        m_zv_satisfied_output = state;
+void HeatChannel::setSatisfied(bool state, time_t when) {
+    if ((m_enabled == false ) || (m_pin_zv_satisfied == -1)) {
+        return;
     }
+    if (state != m_zv_satisfied_output.setState(state,when)) {
+        syslogf(LOG_DAEMON | LOG_INFO, "%s request satisfied set to %s at %d",m_name,state?"on":"off",when);
+    }
+}
+
+// update the output pin as required, and
+// returns true if change is scheduled, false otherwise
+bool HeatChannel::setOutputPin(time_t now) {
+    if ((m_enabled == false ) || (m_pin_zv == -1)) {
+        return false;
+    }
+
+    bool curr = m_zv_output.currentState();
+    bool nextstate = m_zv_output.checkState(now);
+    digitalWrite(m_pin_zv, nextstate?RELAY_ON:RELAY_OFF);
+    if (nextstate != curr) {
+        syslogf(LOG_DAEMON | LOG_INFO, "%s output set to %s",m_name,nextstate?"on":"off");
+    }
+    return (m_zv_output.nextChange() != 0);
+}
+
+bool HeatChannel::setSatisfiedPin(time_t now) {
+    if ((m_enabled == false ) || (m_pin_zv_satisfied == -1)) {
+        return false;
+    }
+
+    bool curr = m_zv_satisfied_output.currentState();
+    bool nextstate = m_zv_satisfied_output.checkState(now);
+    digitalWrite(m_pin_zv_satisfied, nextstate?RELAY_ON:RELAY_OFF);
+    if (nextstate != curr) {
+        syslogf(LOG_DAEMON | LOG_INFO, "%s satisfied set to %s",m_name,nextstate?"on":"off");
+    }
+    return (m_zv_satisfied_output.nextChange() != 0);
 }
 
 // is the channel satisfied
@@ -423,6 +454,8 @@ void HeatChannel::setTargetTempBySetting(int target) {
         // channel supports 2 "on" temperatures
         // "warm" is requested
         m_target_temp = m_target_temp2;
+    } else if (target == 0) {
+        m_target_temp = 0;
     } else {
         // target temperature is always #1
         m_target_temp = m_target_temp1;
