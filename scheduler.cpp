@@ -10,6 +10,7 @@
 #include <mysyslog.h>
 #include "myconfig.h"
 #include "tempsensors.h"
+#include "outputs.h"
 
 #ifdef SHORT_TIMES
 // max time before running the pump for a short while
@@ -472,19 +473,6 @@ void Scheduler::checkSchedule(int d, int h, int m)
     time_t c = 0;
     int targettemp=-1;
 
-    // do not keep calculating until any current cycle is completed
-    if (mLastSchedule > now) {
-        // check to see if the target temperature needs adjusting
-        localtime_r(&starttime, &w2);
-        targettemp = mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15];
-        if ((targettemp != 0) && (targettemp != mLastTarget)) {
-            mChannel.setTargetTempBySetting(targettemp);
-            mLastTarget = targettemp;
-            syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler adjusts %s setting %d",mChannel.getName(),targettemp);
-        }
-        return;
-    }
-
     // if anything between now and warmup is scheduled on then we should go on
     // if (starttime + warmup) is scheduled on
     time_t t2 = t;
@@ -541,6 +529,9 @@ void Scheduler::checkSchedule(int d, int h, int m)
         }
     }
 
+    // grab the current run end time
+    time_t currTimer = mChannel.getTimer();
+
     // schedule says we need to turn on
     if (c > 0) {
         // set runtime
@@ -556,60 +547,123 @@ void Scheduler::checkSchedule(int d, int h, int m)
             t += (starttime-now);
         }
 
-        // remember the expiry time for when we would turn the channel off
-        // this gates us trying to turn the channel back on again
-        mLastSchedule = t + now;
+        // add any temperature compensation on to the end of our duration
+        c = getExtend();
+        t += c;
+
+        // work out when we would switch things off
+        t2 = t + now;
 
         // tell the system to do its stuff
-        c = mChannel.getTimer();
-        if (c > 0) {
-            // channel already has some run time, adjust our delta
-            // to take that into account
-            if ((c - now) > t) {
-                // channel already has more runtime than we were to add
-                // so we do nothing
-                t = 0;
+        bool changed = (t > 0);
+
+        if (currTimer > 0) {
+            // channel is already running with a timed end period
+            // determine if we are permitted to change the run time
+            if (currTimer == t2) {
+                // same run time as we are going to set up this time
+                // no action required
+                changed = false;
+            } else if (currTimer == mLastSchedule) {
+                // same run time as we set up last time
+                // but looks like something changed
+                // we can shorten the time because it's one we set
+
+                // set our delta to take that into account
+                // (this can be negative)
+                t = (t2 - currTimer);
+
             } else {
-                t -= (c - now);
+                // channel has some run time but we didn't set that so we
+                // cannot shorten it
+                if (currTimer > t2) {
+                    // channel already has more runtime than we were to add
+                    // so we do nothing
+                    t = 0;
+                    changed = false;
+                } else {
+                    // set our run time to extend by the amount called for
+                    // to turn off at scheduled time
+                    t = (t2 - currTimer);
+                }
             }
         }
+        if ((t > 5) || (t < -5)) {
+            // fall thru, we must action it
+        } else {
+            // small change, ignore
+            changed = false;
+        }
+
+        // turn it up if it is cold
+        if (getBoost()) { targettemp = 2; }
 
         // take action if required
-        if (t > 0) {
-            // add any temperature compensation
-            c = getExtend();
-            t += c;
-
-            // turn it up if it is cold
-            if (getBoost()) { targettemp = 2; }
+        if (changed) {
+            // remember the expiry time for when we would turn the channel off
+            // this gates us trying to turn the channel back on again
+            mLastSchedule = t2;
 
             // tell the world
             syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler starts %s for %d seconds (warmup %d extend %d), setting %d",mChannel.getName(),t,w,c,targettemp);
             mChannel.setTargetTempBySetting(targettemp);
             mLastTarget = targettemp;
-            mChannel.adjustTimer(t);
+            mChannel.adjustTimer(t2);
+        } else {
+            // no need to change the scheduling time
+
+            // check to see if the target temperature needs adjusting
+            if (targettemp != mLastTarget) {
+                mChannel.setTargetTempBySetting(targettemp);
+                mLastTarget = targettemp;
+                syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler adjusts %s setting %d",mChannel.getName(),targettemp);
+            }
+        }
+    } else {
+        // schedule says we do not need to run
+
+        // if we just shortened the schedule then we may need to turn the
+        // boiler off
+        if ((currTimer > 0) && (currTimer == mLastSchedule)) {
+            // boiler is running because the scheduler turned it on
+            // therefore we must turn it off
+            mChannel.setTargetTempBySetting(0);
+            mChannel.adjustTimer(CHANNEL_TIMER_OFF);
+            syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler stops %s, schedule shortened to off",mChannel.getName());
         }
 
-    } else if ((mChannel.getTimer() <= now) &&
-               ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
-               ((now - mChannel.lastTime()) > CIRCULATION_TIME)) {
-        // if >24h since last run
-        // set timer for (now-1) / -2
         // sludge stopper
-        syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
-        mChannel.adjustTimer(-2);
+        // if channel is off and >24h since last ran (or up for long enough)
+        // check this here before resetting mLastSchedule otherwise the sludge
+        // buster triggers before the main task stops the burner
+        if ((currTimer <= now) &&
+            (mLastSchedule == 0) &&
+            ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
+            ((now - mChannel.lastTime()) > CIRCULATION_TIME)) {
+            // we can only run the sludge buster if all channels are inactive
+            if (o_boiler_state == OUTPUT_OFF) {
+                syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
+                mChannel.adjustTimer(CHANNEL_TIMER_SLUDGE);
+            }
+        }
+
+        // channel is now off
+        mLastSchedule = 0;
+        mLastTarget = 0;
+
     }
 }
 
 time_t Scheduler::lastChange()
 {
-    // returns time of last change, 0 if none pending
+    // returns time of last config change, 0 if none pending
     return mLastChange;
 }
 
 void Scheduler::saveChanges()
 {
     if (mLastChange == 0) { return; }
+    mLastChange = 0;
     String s;
     int i,j,k;
     char c[2];
@@ -625,7 +679,6 @@ void Scheduler::saveChanges()
     }
     MyCfgPutString("schedule",String(mChannel.getId()),s);
     syslogf(LOG_DAEMON|LOG_ERR,"Saved schedule for %s",mChannel.getName());
-    mLastChange = 0;
 }
 
 static void scheduler_run(void *)
