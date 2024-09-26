@@ -146,13 +146,11 @@ static String statuspage_processor(const String& var){
     s+="</tr><tr><th align=\"left\">State</th>";
     for(i=0; i<num_heat_channels; ++i) {
         s +="<td align=\"center\">";
-        if (channels[i].getActive()) {
-            s += (channels[i].getOutput()) ? "on" : "off";
-            s += " ";
-            s += (channels[i].getInputReady().pinstate()) ? "calls " : "";
-            s += (channels[i].getInputSatisfied().pinstate()) ? "satisfied " : "";
-            s += (channels[i].getSatisfied()) ? "SATon" : "SAToff";
-        }
+        s += (channels[i].getOutput()) ? "on" : "off";
+        s += " ";
+        s += (channels[i].getInputReady().pinstate()) ? "calls " : "";
+        s += (channels[i].getInputSatisfied().pinstate()) ? "satisfied " : "";
+        s += (channels[i].getSatisfied()) ? "SATon" : "SAToff";
         s +="</td>";
     }
     s+="</tr></table>";
