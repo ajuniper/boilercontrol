@@ -25,6 +25,7 @@ class Scheduler {
         // when things have happened
         time_t mLastChange;
         time_t mLastSchedule;
+        time_t mCancelledUntil;
         int mLastTarget;
         // holds 0/1/2
         char mSchedule[7][24][4];
@@ -59,6 +60,8 @@ class Scheduler {
         void setExtendStartTemp(int i) { mExtendStartTemp = i; }
         void setExtendRate(float r) { mExtendRate = r; }
         void setExtendLimit(int l) { mExtendLimit = l; }
+        void turnedOff(time_t endtime);
+        void wakeUp();
         static const int num_slots = num_days * num_hours * num_mins;
 };
 extern void scheduler_setup();

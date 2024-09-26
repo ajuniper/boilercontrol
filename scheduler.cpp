@@ -385,6 +385,7 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
 
     mLastChange(0),
     mLastSchedule(0),
+    mCancelledUntil(0),
     mLastTarget(-1)
 {
     memset(mSchedule, 0, sizeof(mSchedule));
@@ -587,6 +588,14 @@ void Scheduler::checkSchedule(int d, int h, int m)
                     t = (t2 - currTimer);
                 }
             }
+        } else {
+            if ((now < mCancelledUntil) && (mLastSchedule == mCancelledUntil)) {
+                // user cancelled a preceding request so we do not start a new request
+                // until that time has passed, unless we decide we want to finish at
+                // a different time
+                t = 0;
+                changed = false;
+            }
         }
         if ((t > 5) || (t < -5)) {
             // fall thru, we must action it
@@ -654,6 +663,25 @@ void Scheduler::checkSchedule(int d, int h, int m)
     }
 }
 
+// called by heat channel to say the user cancelled the current request
+// if it's one we had requested then we must remember not to request again
+// until the current slot has passed
+void Scheduler::turnedOff(time_t endtime)
+{
+    if (endtime == mLastSchedule) {
+        // the request was one of ours
+        // remember to not start again for a while
+        mCancelledUntil = endtime;
+    }
+}
+
+// called by the heat channel to trigger a schedule recalculation
+// e.g. if channel got turned on
+void Scheduler::wakeUp()
+{
+    xTaskNotifyGive( schedtask_handle );
+}
+
 time_t Scheduler::lastChange()
 {
     // returns time of last config change, 0 if none pending
@@ -697,14 +725,14 @@ static void scheduler_run(void *)
         for(i=0; i<num_heat_channels; ++i) {
             HeatChannel &ch(channels[i]);
 
-            // if channel is enabled
-            if (!ch.getActive()) { continue; }
-
             // check channel for pending save
             u = ch.getScheduler().lastChange();
 
             // pick the newest pending save
             if ((u != 0) && (u > t)) { t = u; }
+
+            // skip if channel is disabled
+            if (!ch.getActive()) { continue; }
 
             // skip if already running
             //if (ch.getTimer() > 0) { continue; }
