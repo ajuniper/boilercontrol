@@ -104,6 +104,7 @@ void HeatChannel::adjustTimer(int dt) {
             if (m_endtime != 0) {
                 // channel is running so set end time to
                 // a moment ago
+                m_scheduler.turnedOff(m_endtime);
                 m_endtime = time(NULL)-1;
             } else if (m_cooldown_time != 0) {
                 // channel is already off, cancel cooldown
@@ -469,6 +470,7 @@ void HeatChannel::setActive(bool a, bool updateConfig) {
     }
     m_active = a;
     m_changed = true;
+    m_scheduler.wakeUp();
     if (updateConfig) {
         MyCfgPutInt("chactive", String(m_id), a);
     }
