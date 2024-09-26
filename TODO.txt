@@ -8,13 +8,17 @@ tempchannel to have multiple temps
 . extend manual heating via web does not update target temp
 . defer sludge if other channel is active
 . if shorten schedule then need to recalculate
+. test state info always present in web even if ch disabled
+. if turn off during schedule then do not restart until next interval
 
 FIX
 . config value for 3s delay
 . touch screen flaky - reflow header on LCD
 . sludgebuster should run for shorter time than cooldown
 . adjustTimer to ignore small changes
-. if turn off during schedule then do not restart until next interval
+. refresh web page every 15s
+. when load schedule page, select current day
+. web show more config values
 
 TODO
 . web
