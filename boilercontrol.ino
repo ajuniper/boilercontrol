@@ -35,6 +35,7 @@ const char* password = MY_WIFI_PASSWORD;
 #else
 #define BOILER_SHORT_CYCLE 120
 #endif
+#define BOILER_RELAY_WAIT 3
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -47,10 +48,13 @@ const char* password = MY_WIFI_PASSWORD;
 #include "webserver.h"
 
 static const char * handleConfigBoiler(const char * name, const String & id, int &value) {
-    if (id == "time") {
+    if (id == "cyct") {
         // all ok, save the value
         return NULL;
-    } else if (id == "percent") {
+    } else if (id == "cycpc") {
+        // all ok, save the value
+        return NULL;
+    } else if (id == "wait") {
         // all ok, save the value
         return NULL;
     } else {
@@ -69,7 +73,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Starting...");
     MyCfgInit(true);
-    MyCfgRegisterInt("cycle", &handleConfigBoiler);
+    MyCfgRegisterInt("boiler", &handleConfigBoiler);
 
     mytime_setup(MY_TIMEZONE, PIN_RTC_CLK, PIN_RTC_DATA, PIN_RTC_RST);
     WIFI_init("boiler");
@@ -155,8 +159,8 @@ static void output_task (void *)
                 // boiler just went over temperature
 
                 // read the cycling config
-                int short_cycle = MyCfgGetInt("cycle","time", BOILER_SHORT_CYCLE);
-                hysteresis = 100 - MyCfgGetInt("cycle","percent", 10);
+                int short_cycle = MyCfgGetInt("boiler","cyct", BOILER_SHORT_CYCLE);
+                hysteresis = 100 - MyCfgGetInt("boiler","cycpc", 10);
 
                 syslogf(LOG_DAEMON | LOG_WARNING, "Cycling boiler off, flow temp %dC is greater than target %dC fire again at %dC",flow_temp,last_target_temp,((last_target_temp * hysteresis)/100));
 
@@ -253,6 +257,9 @@ void loop() {
         bool calling = false;
         target_temp = 0;
 
+        // cache the interval between relay changes
+        time_t relaywait = MyCfgGetInt("boiler","wait", BOILER_RELAY_WAIT);
+
         // see what is ready for action
         for (i=0; i<num_heat_channels; ++i) {
             if (channels[i].wantFire()) {
@@ -287,8 +294,8 @@ void loop() {
                         // something is asking for heat
                         tt = max(tt, channels[i].targetTemp());
                         // give the pump and boiler time for the zv to be in place
-                        o_pump_on.setState(true, now+3);
-                        o_boiler_on.setState(true,now+6);
+                        o_pump_on.setState(true, now+relaywait);
+                        o_boiler_on.setState(true,now+relaywait+relaywait);
                         syslogf(LOG_DAEMON | LOG_WARNING, "Run pump and boiler to %dC",tt);
                     }
                 }
@@ -328,22 +335,22 @@ void loop() {
 
                 syslogf(LOG_DAEMON | LOG_WARNING, "Run pump for cooldown");
                 o_boiler_on.setState(false);
-                o_pump_on.setState(true,now+3);
+                o_pump_on.setState(true,now+relaywait);
             } else {
                 // nothing on
 
                 o_boiler_on.setState(false);
                 // give the boiler a chance to stop before stopping the pump
-                o_pump_on.setState(false,now+3);
+                o_pump_on.setState(false,now+relaywait);
 
                 // action the satisfied relays to off, not needed
                 for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setSatisfied(false,now+6);
+                    channels[i].setSatisfied(false,now+relaywait+relaywait);
                 }
 
                 // action the zone valves to off
                 for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setOutput(false,now+6);
+                    channels[i].setOutput(false,now+relaywait+relaywait);
                 }
 
                 syslogf(LOG_DAEMON | LOG_WARNING, "Pump and boiler off");
