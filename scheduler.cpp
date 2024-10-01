@@ -589,6 +589,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
                 }
             }
         } else {
+            // channel is currently not running
             if ((now < mCancelledUntil) && (mLastSchedule == mCancelledUntil)) {
                 // user cancelled a preceding request so we do not start a new request
                 // until that time has passed, unless we decide we want to finish at
