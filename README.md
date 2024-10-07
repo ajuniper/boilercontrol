@@ -38,6 +38,7 @@ All requests are `GET` requests (yuk!)
 * `/config?name=boiler&id=cyct&value=X` sets min off time for cycling boiler (default 120 seconds)
 * `/config?name=boiler&id=cycpc&value=X` sets percentage which flow must drop to end cycle (default 10%)
 * `/config?name=boiler&id=wait&value=X` sets time in S to wait after setting each relay (3 seconds)
+* `/config?name=circtime&id=N&valueX` sets the sludge buster max time to sit idle in seconds (default 86400 = 1 day, 0 = off)
 
 Provided by the updater library:
 * `/update` gives page for doing OTA updates

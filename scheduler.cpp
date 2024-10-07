@@ -382,6 +382,7 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
     mExtendStartTemp(4),
     mExtendRate(0), // disabled by default
     mExtendLimit(0),
+    mCirculationTime(CIRCULATION_TIME),
 
     mLastChange(0),
     mLastSchedule(0),
@@ -403,6 +404,7 @@ void Scheduler::readConfig()
     mExtendStartTemp = MyCfgGetInt("orThrsh", String(mChannel.getId()), mExtendStartTemp);
     mExtendRate = MyCfgGetInt("orScale", String(mChannel.getId()), mExtendRate);
     mExtendLimit = MyCfgGetInt("orLimit", String(mChannel.getId()), mExtendLimit);
+    mCirculationTime = MyCfgGetInt("circtime", String(mChannel.getId()), mCirculationTime);
 
     // read saved schedule (holds chars '0','1','2')
     String s = MyCfgGetString("schedule", String(mChannel.getId()), String());
@@ -646,10 +648,11 @@ void Scheduler::checkSchedule(int d, int h, int m)
         // if channel is off and >24h since last ran (or up for long enough)
         // check this here before resetting mLastSchedule otherwise the sludge
         // buster triggers before the main task stops the burner
-        if ((currTimer <= now) &&
+        if ((mCirculationTime > 0) &&
+            (currTimer <= now) &&
             (mLastSchedule == 0) &&
             ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
-            ((now - mChannel.lastTime()) > CIRCULATION_TIME)) {
+            ((now - mChannel.lastTime()) > mCirculationTime)) {
             // we can only run the sludge buster if all channels are inactive
             if (o_boiler_state == OUTPUT_OFF) {
                 syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
@@ -830,6 +833,8 @@ static const char * cfg_set_warmup(const char * name, const String & id, int &va
         channels[i].getScheduler().setExtendStartTemp(value);
     } else if (strcmp(name, "orLimit") == 0) {
         channels[i].getScheduler().setExtendLimit(value);
+    } else if (strcmp(name, "circtime") == 0) {
+        channels[i].getScheduler().setSludge(value);
     } else {
         return "Invalid selector";
     }
@@ -892,6 +897,7 @@ void scheduler_setup() {
     MyCfgRegisterInt("orThrsh",&cfg_set_warmup);
     MyCfgRegisterFloat("orScale",&cfg_set_warmup_float);
     MyCfgRegisterInt("orLimit",&cfg_set_warmup);
+    MyCfgRegisterInt("circtime",&cfg_set_warmup);
 
     MyCfgRegisterString("schedule",&cfg_set_schedule);
 }
