@@ -180,12 +180,6 @@ static String statuspage_processor(const String& var){
             s += "--- ";
         }
     }
-    s += "</td></tr><tr><td>Target Temp</td><td>";
-    if (target_temp == 999) {
-        s+= "---";
-    } else {
-        s+= String(target_temp);
-    }
     s += "</td></tr><tr><td>WiFi SNR</td><td>" + String(WiFi.RSSI());
     s += "</td></tr><tr><td>Date</td><td>";
     struct tm timeinfo;
