@@ -10,7 +10,7 @@ tempchannel to have multiple temps
 . if shorten schedule then need to recalculate
 . test state info always present in web even if ch disabled
 . if turn off during schedule then do not restart until next interval
-. config value for 3s delay
+. config for sludge buster
 
 FIX
 . touch screen flaky - reflow header on LCD
@@ -19,7 +19,6 @@ FIX
 . refresh web page every 15s
 . when load schedule page, select current day
 . web show more config values
-. weird syslog characters
 
 TODO
 . web
@@ -131,4 +130,6 @@ tempchannel to have multiple temps
         know temp for each
 . sequence with delay boiler off, pump off, zv deactivate - not all changed in single pass, cannot deactivate zv before pump
   . test changes to sequence boiler and pump on
+. weird syslog characters
+. config value for 3s delay
 
