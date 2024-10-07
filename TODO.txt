@@ -1,10 +1,9 @@
 TEST
 tempchannel to have multiple temps
         scheduler to spot change in requested temp and adjust
-. heating advance
-. heating extend
-. heating boost
-. cycle based on return temp + min off time
+. heating advance wuThrsh(12) wuScale(0) wuLimit(0)
+. heating extend  orThrsh(4) orScale(0) orLimit(0)
+. heating boost   bstThrsh(0)
 . extend manual heating via web does not update target temp
 . defer sludge if other channel is active
 
@@ -132,4 +131,5 @@ tempchannel to have multiple temps
 . test state info always present in web even if ch disabled
 . if shorten schedule then need to recalculate
 . if turn off during schedule then do not restart until next interval
+. cycle based on return temp + min off time
 
