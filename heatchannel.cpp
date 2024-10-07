@@ -447,6 +447,7 @@ void HeatChannel::drawCountdown() const {
 
 void HeatChannel::setTargetTemp(int target) {
     m_target_temp = target;
+    m_changed = true;
 }
 
 void HeatChannel::setTargetTempBySetting(int target) {
@@ -461,6 +462,7 @@ void HeatChannel::setTargetTempBySetting(int target) {
         // target temperature is always #1
         m_target_temp = m_target_temp1;
     }
+    m_changed = true;
 }
 
 void HeatChannel::setActive(bool a, bool updateConfig) {
