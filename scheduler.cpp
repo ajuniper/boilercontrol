@@ -241,6 +241,8 @@ selectedSchedule = "s" + selectedCh+"."+selectedDay;
 document.getElementById("c"+selectedCh).style.display = "block";
 document.getElementById(selectedSchedule).style.display = "block";
 loadSchedule();
+i = (((new Date()).getDay())+6)%7;
+clickDay(document.getElementById("days").children[i],i);
 </script>
 </body>
 </html>
@@ -382,7 +384,7 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
     mExtendStartTemp(4),
     mExtendRate(0), // disabled by default
     mExtendLimit(0),
-    mCirculationTime(CIRCULATION_TIME),
+    mSludgeInterval(CIRCULATION_TIME),
 
     mLastChange(0),
     mLastSchedule(0),
@@ -398,13 +400,13 @@ void Scheduler::readConfig()
     // TODO names too long
     mBaseWarmup = MyCfgGetInt("wuBase", String(mChannel.getId()), mBaseWarmup);
     mAdvanceStartTemp = MyCfgGetInt("wuThrsh", String(mChannel.getId()), mAdvanceStartTemp);
-    mAdvanceRate = MyCfgGetInt("wuScale", String(mChannel.getId()), mAdvanceRate);
+    mAdvanceRate = MyCfgGetFloat("wuScale", String(mChannel.getId()), mAdvanceRate);
     mAdvanceLimit = MyCfgGetInt("wuLimit", String(mChannel.getId()), mAdvanceLimit);
     mRunHotterTemp = MyCfgGetInt("bstThrsh", String(mChannel.getId()), mRunHotterTemp);
     mExtendStartTemp = MyCfgGetInt("orThrsh", String(mChannel.getId()), mExtendStartTemp);
-    mExtendRate = MyCfgGetInt("orScale", String(mChannel.getId()), mExtendRate);
+    mExtendRate = MyCfgGetFloat("orScale", String(mChannel.getId()), mExtendRate);
     mExtendLimit = MyCfgGetInt("orLimit", String(mChannel.getId()), mExtendLimit);
-    mCirculationTime = MyCfgGetInt("circtime", String(mChannel.getId()), mCirculationTime);
+    mSludgeInterval = MyCfgGetInt("circtime", String(mChannel.getId()), mSludgeInterval);
 
     // read saved schedule (holds chars '0','1','2')
     String s = MyCfgGetString("schedule", String(mChannel.getId()), String());
@@ -431,7 +433,7 @@ void Scheduler::readConfig()
 time_t Scheduler::getWarmup() const {
     time_t w = mBaseWarmup;
     int temp = tempsensors_get("forecast.low");
-    if (temp <= mAdvanceStartTemp) {
+    if (temp < mAdvanceStartTemp) {
         int adj = round(((float)(mAdvanceStartTemp - temp)) * mAdvanceRate);
         if (adj > mAdvanceLimit) {
             adj = mAdvanceLimit;
@@ -447,7 +449,7 @@ time_t Scheduler::getWarmup() const {
 time_t Scheduler::getExtend() const {
     int adj = 0;
     int temp = tempsensors_get("forecast.low");
-    if (temp <= mExtendStartTemp) {
+    if (temp < mExtendStartTemp) {
         adj = round(((float)(mExtendStartTemp - temp)) * mExtendRate);
         if (adj > mExtendLimit) {
             adj = mExtendLimit;
@@ -648,11 +650,11 @@ void Scheduler::checkSchedule(int d, int h, int m)
         // if channel is off and >24h since last ran (or up for long enough)
         // check this here before resetting mLastSchedule otherwise the sludge
         // buster triggers before the main task stops the burner
-        if ((mCirculationTime > 0) &&
+        if ((mSludgeInterval > 0) &&
             (currTimer <= now) &&
             (mLastSchedule == 0) &&
             ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
-            ((now - mChannel.lastTime()) > mCirculationTime)) {
+            ((now - mChannel.lastTime()) > mSludgeInterval)) {
             // we can only run the sludge buster if all channels are inactive
             if (o_boiler_state == OUTPUT_OFF) {
                 syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
@@ -834,7 +836,7 @@ static const char * cfg_set_warmup(const char * name, const String & id, int &va
     } else if (strcmp(name, "orLimit") == 0) {
         channels[i].getScheduler().setExtendLimit(value);
     } else if (strcmp(name, "circtime") == 0) {
-        channels[i].getScheduler().setSludge(value);
+        channels[i].getScheduler().setSludgeInterval(value);
     } else {
         return "Invalid selector";
     }

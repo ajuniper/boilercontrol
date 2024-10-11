@@ -22,7 +22,7 @@ class Scheduler {
         float mExtendRate;
         int mExtendLimit;
         // sludge buster max time limit
-        int mCirculationTime;
+        int mSludgeInterval;
 
         // when things have happened
         time_t mLastChange;
@@ -62,7 +62,7 @@ class Scheduler {
         void setExtendStartTemp(int i) { mExtendStartTemp = i; }
         void setExtendRate(float r) { mExtendRate = r; }
         void setExtendLimit(int l) { mExtendLimit = l; }
-        void setSludge(int s) { mCirculationTime = s; }
+        void setSludgeInterval(int s) { mSludgeInterval = s; }
         void turnedOff(time_t endtime);
         void wakeUp();
         static const int num_slots = num_days * num_hours * num_mins;

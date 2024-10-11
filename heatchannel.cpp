@@ -251,6 +251,7 @@ void HeatChannel::readConfig()
     m_target_temp1 = MyCfgGetInt("tgttmp",String(m_id), m_target_temp1);
     m_target_temp2 = MyCfgGetInt("tgttmp2",String(m_id), m_target_temp2);
     m_active = MyCfgGetInt("chactive",String(m_id), m_active);
+    m_cooldown_duration = MyCfgGetInt("circrun",String(m_id), m_cooldown_duration);
 }
 
 HeatChannel channels[num_heat_channels] = {
@@ -295,8 +296,12 @@ static const char * cfg_set_targettemp(const char * name, const String & id, int
     if ((ch >= 0) && (ch <= num_heat_channels)) {
         if (name == "tgttmp2") {
             channels[ch].setTargetTemp2(value);
-        } else {
+        } else if (name == "tgttmp") {
             channels[ch].setTargetTemp1(value);
+        } else if (name == "circrun") {
+            channels[ch].setSludgeRuntime(value);
+        } else {
+            return "Invalid setting";
         }
         return NULL;
     } else {
@@ -345,6 +350,7 @@ void heatchannel_setup() {
     xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
     MyCfgRegisterInt("tgttmp",&cfg_set_targettemp);
     MyCfgRegisterInt("tgttmp2",&cfg_set_targettemp);
+    MyCfgRegisterInt("circrun",&cfg_set_targettemp);
     MyCfgRegisterInt("chactive",&cfg_set_active);
 }
 

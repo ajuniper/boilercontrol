@@ -81,6 +81,7 @@ public:
     void setTargetTemp2(int target) { m_target_temp2 = target; }
     void setTargetTemp(int target);
     void setTargetTempBySetting(int target); /* 0/1/2 */
+    void setSludgeRuntime(int t) { m_cooldown_duration = t; }
 
     // should this channel be running?
     bool wantFire() const;
