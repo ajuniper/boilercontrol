@@ -17,6 +17,7 @@ static const char statuspage[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
   <title>Boiler Control</title>
+  <meta http-equiv="refresh" content="15"/>
 </head>
 <body>
   <h2>Boiler Control</h2>
