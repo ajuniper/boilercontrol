@@ -1,18 +1,10 @@
 TEST
-tempchannel to have multiple temps
-        scheduler to spot change in requested temp and adjust
-. heating advance wuThrsh(12) wuScale(0) wuLimit(0)
-. heating extend  orThrsh(4) orScale(0) orLimit(0)
-. heating boost   bstThrsh(0)
-. extend manual heating via web does not update target temp
-. defer sludge if other channel is active
+. refresh web page every 15s
+. sludgebuster should run for shorter time than cooldown
 
 FIX
 . touch screen flaky - reflow header on LCD
-. sludgebuster should run for shorter time than cooldown
 . adjustTimer to ignore small changes
-. refresh web page every 15s
-. when load schedule page, select current day
 . web show more config values
 
 TODO
@@ -132,4 +124,11 @@ tempchannel to have multiple temps
 . if shorten schedule then need to recalculate
 . if turn off during schedule then do not restart until next interval
 . cycle based on return temp + min off time
-
+. heating boost   bstThrsh(0)
+. extend manual heating via web does not update target temp
+tempchannel to have multiple temps
+        scheduler to spot change in requested temp and adjust
+. heating advance wuThrsh(12) wuScale(0) wuLimit(0)
+. defer sludge if other channel is active
+. heating extend  orThrsh(4) orScale(0) orLimit(0)
+. when load schedule page, select current day
