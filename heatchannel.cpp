@@ -47,6 +47,8 @@ HeatChannel::HeatChannel(
     m_active(false),
     m_cooldown_duration(a_cooldown_duration),
     m_cooldown_mintemp(a_cooldown_mintemp),
+    m_cooldown_target(0),
+    m_sludge_duration(120),
     m_endtime(0),
     m_cooldown_time(0),
     m_zv_output(false),
@@ -71,16 +73,25 @@ HeatChannel::HeatChannel(
 bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
     bool ret = m_changed;
     m_changed = false;
-    if (m_endtime > 0) {
+    if ((m_endtime > 0) || (m_endtime == CHANNEL_TIMER_SLUDGE)) {
         if (now > m_endtime) {
             // time to turn off
-            m_endtime = 0;
-            m_lastTime = time(NULL);
             const char * c = "";
-            if (m_cooldown_duration > 0) {
-                m_cooldown_time = now + m_cooldown_duration;
-                c = ", starting cooldown";
+            if (m_endtime == CHANNEL_TIMER_SLUDGE) {
+                if (m_sludge_duration > 0) {
+                    m_cooldown_target = -99999;
+                    m_cooldown_time = now + m_sludge_duration;
+                    c = ", starting sludgebuster";
+                }
+            } else {
+                if (m_cooldown_duration > 0) {
+                    m_cooldown_target = m_cooldown_mintemp;
+                    m_cooldown_time = now + m_cooldown_duration;
+                    c = ", starting cooldown";
+                }
             }
+            m_endtime = 0;
+            m_lastTime = now;
             syslogf(LOG_DAEMON|LOG_INFO,"%s turning off%s",m_name,c);
             ret = true;
         }
@@ -92,7 +103,7 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
             m_lastTime = time(NULL);
             syslogf(LOG_DAEMON|LOG_INFO,"%s cooldown finished",m_name);
             ret = true;
-        } else if (tempsensors_get("boiler.flow") < m_cooldown_mintemp) {
+        } else if (tempsensors_get("boiler.flow") < m_cooldown_target) {
             // cooldown flow is low enough, turn off
             m_cooldown_time = 0;
             m_lastTime = time(NULL);
@@ -129,19 +140,20 @@ void HeatChannel::adjustTimer(int dt) {
             // run cooldown cycle to circulate sludge
             // TODO set m_endtime to 1/2 and check for this in updateTimers
             m_cooldown_time = 0;
-            m_endtime = time(NULL)-1;
+            m_endtime = dt;
             break;
         default:
             // turn on for given seconds
             m_cooldown_time = 0;
             if (dt < 1000000000) {
                 // delta
-                if (m_endtime == 0) {
+                if ((m_endtime == 0) || (m_endtime == CHANNEL_TIMER_SLUDGE)) {
                     // currently off so calculate absolute off time
                     m_endtime = time(NULL) + dt;
                 } else if (m_endtime == CHANNEL_TIMER_ON) {
                     // noop, already fixed on
                 } else {
+                    // at some arbitrary value, add the extra time
                     m_endtime += dt;
                 }
             } else {
@@ -220,7 +232,7 @@ bool HeatChannel::wantFire() const {
     // - channel is active and
     // - timer is active
     //return m_enabled && m_active && ((m_endtime != 0) || (m_cooldown_time != 0));
-    return m_enabled && m_active && (m_endtime != 0);
+    return m_enabled && m_active && ((m_endtime > 0) || (m_endtime == CHANNEL_TIMER_ON));
 }
 // is the channel ready for boiler and pump to run?
 bool HeatChannel::canFire() const {
@@ -263,6 +275,7 @@ void HeatChannel::readConfig()
     m_active = MyCfgGetInt("chactive",String(m_id), m_active);
     m_cooldown_duration = MyCfgGetInt("coolrun",String(m_id), m_cooldown_duration);
     m_cooldown_mintemp = MyCfgGetInt("cooltmp",String(m_id), m_cooldown_mintemp);
+    m_sludge_duration = MyCfgGetInt("circrun",String(m_id), m_sludge_duration);
 }
 
 HeatChannel channels[num_heat_channels] = {
@@ -315,6 +328,8 @@ static const char * cfg_set_targettemp(const char * name, const String & id, int
             channels[ch].setCooldownRuntime(value);
         } else if (strcmp(name, "cooltmp") == 0) {
             channels[ch].setCooldownMintemp(value);
+        } else if (strcmp(name, "circrun") == 0) {
+            channels[ch].setSludgeRuntime(value);
         } else {
             return "Invalid setting";
         }
@@ -367,6 +382,7 @@ void heatchannel_setup() {
     MyCfgRegisterInt("tgttmp2",&cfg_set_targettemp);
     MyCfgRegisterInt("coolrun",&cfg_set_targettemp);
     MyCfgRegisterInt("cooltmp",&cfg_set_targettemp);
+    MyCfgRegisterInt("circrun",&cfg_set_targettemp);
     MyCfgRegisterInt("chactive",&cfg_set_active);
 }
 
@@ -432,13 +448,14 @@ void HeatChannel::drawActive() const {
 void HeatChannel::drawTimer() const {
     int x=channel_timer_x + (channel_icon_size/2);
     int y=m_y + (channel_icon_size/2);
-    if (m_endtime == -1) {
+    if (m_endtime == CHANNEL_TIMER_ON) {
         tft.fillCircle(x,y,channel_icon_size/2,TFT_GREEN);
     } else {
+        // treat sludge as off
         tft.fillCircle(x,y,channel_icon_size/2,TFT_BLACK);
-        tft.drawCircle(x,y,channel_icon_size/2,(m_endtime!=0)?TFT_GREEN:TFT_DARKGREY);
-        tft.drawFastVLine(x,y-(channel_icon_size/2)+4,(channel_icon_size/2)-4,(m_endtime!=0)?TFT_GREEN:TFT_DARKGREY);
-        tft.drawFastHLine(x,y,(channel_icon_size/2)-6,(m_endtime!=0)?TFT_GREEN:TFT_DARKGREY);
+        tft.drawCircle(x,y,channel_icon_size/2,(m_endtime>0)?TFT_GREEN:TFT_DARKGREY);
+        tft.drawFastVLine(x,y-(channel_icon_size/2)+4,(channel_icon_size/2)-4,(m_endtime>0)?TFT_GREEN:TFT_DARKGREY);
+        tft.drawFastHLine(x,y,(channel_icon_size/2)-6,(m_endtime>0)?TFT_GREEN:TFT_DARKGREY);
     }
 }
 
@@ -449,13 +466,17 @@ void HeatChannel::drawCountdown() const {
     tft.setTextColor(TFT_DARKGREY,TFT_BLACK);
     t="  Off";
     switch(m_endtime) {
-        case -1:
+        case CHANNEL_TIMER_ON:
             tft.setTextColor(channel_colour,TFT_BLACK);
             t="   On";
             break;
+
+        // treat sludge as off
+        case CHANNEL_TIMER_SLUDGE:
         case 0:
             // already set up
             break;
+
         default:
             if (m_endtime > time(NULL)) {
                 tft.setTextColor(channel_colour,TFT_BLACK);

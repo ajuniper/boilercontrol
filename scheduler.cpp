@@ -397,7 +397,6 @@ Scheduler::Scheduler(HeatChannel & aChannel, int aSetback) :
 void Scheduler::readConfig()
 {
     // read saved setback config
-    // TODO names too long
     mBaseWarmup = MyCfgGetInt("wuBase", String(mChannel.getId()), mBaseWarmup);
     mAdvanceStartTemp = MyCfgGetInt("wuThrsh", String(mChannel.getId()), mAdvanceStartTemp);
     mAdvanceRate = MyCfgGetFloat("wuScale", String(mChannel.getId()), mAdvanceRate);
@@ -739,9 +738,6 @@ static void scheduler_run(void *)
 
             // skip if channel is disabled
             if (!ch.getActive()) { continue; }
-
-            // skip if already running
-            //if (ch.getTimer() > 0) { continue; }
 
             // process this channel
             ch.getScheduler().checkSchedule(now.tm_wday,now.tm_hour,now.tm_min);

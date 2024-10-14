@@ -1,6 +1,4 @@
 TEST
-. refresh web page every 15s
-. sludgebuster should run for shorter time than cooldown
 
 FIX
 . touch screen flaky - reflow header on LCD
@@ -8,12 +6,10 @@ FIX
 . web show more config values
 
 TODO
-. web
-    . make look like lcd
+. make web look like lcd
 . scheduler onscreen
 . adjust target temp based on return temp (what are the rules?  try to minimise flow based on ret+15?)
 . auto hotspot if no wifi
-. web make page auto refresh
 . ntp, syslog targets from dhcp
 . mqtt
 
@@ -132,3 +128,7 @@ tempchannel to have multiple temps
 . defer sludge if other channel is active
 . heating extend  orThrsh(4) orScale(0) orLimit(0)
 . when load schedule page, select current day
+. refresh web page every 15s
+. sludgebuster should run for shorter time than cooldown
+. cooldown based on temperature
+. cooltime != circtime, during circ do not check temperature

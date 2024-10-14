@@ -23,6 +23,8 @@ private:
     int m_endtime;
     int m_cooldown_time;
     int m_cooldown_mintemp;
+    int m_cooldown_target;
+    int m_sludge_duration;
     ScheduledOutput m_zv_output;
     ScheduledOutput m_zv_satisfied_output;
     bool m_changed;
@@ -85,6 +87,7 @@ public:
     void setTargetTempBySetting(int target); /* 0/1/2 */
     void setCooldownRuntime(int t) { m_cooldown_duration = t; }
     void setCooldownMintemp(int t) { m_cooldown_mintemp = t; }
+    void setSludgeRuntime(int t) { m_sludge_duration = t; }
 
     // should this channel be running?
     bool wantFire() const;

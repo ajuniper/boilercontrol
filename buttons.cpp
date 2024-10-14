@@ -105,7 +105,8 @@ static bool handle_press_timer(int a_h, time_t a_duration)
     if (!channels[a_h].getActive()) { return false; }
     // no op for short presses, action long press here
     if (a_duration > 2) {
-        if (channels[a_h].getTimer() == 0) {
+        time_t t = channels[a_h].getTimer();
+        if ((t == 0) || (t == CHANNEL_TIMER_SLUDGE)) {
             channels[a_h].setTargetTempBySetting(selected_temperatures[a_h]?1:2);
             channels[a_h].adjustTimer(CHANNEL_TIMER_ON);
         } else {
@@ -121,7 +122,7 @@ static bool handle_release_timer(int a_h, time_t a_duration)
     if (!channels[a_h].getActive()) { return false; }
     // handle short presses on release
     if (a_duration < 3) {
-        if (channels[a_h].getTimer() == -1) {
+        if (channels[a_h].getTimer() == CHANNEL_TIMER_ON) {
             // short press when fixed on means turn off
             channels[a_h].adjustTimer(CHANNEL_TIMER_OFF);
         } else {

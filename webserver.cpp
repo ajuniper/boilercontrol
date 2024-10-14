@@ -70,6 +70,7 @@ static String statuspage_processor(const String& var){
             t = channels[i].getTimer();
             switch (t) {
                 case CHANNEL_TIMER_OFF:
+                case CHANNEL_TIMER_SLUDGE:
                     s += "Off";
                     // cooldown
                     t = channels[i].getCooldown();
