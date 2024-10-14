@@ -242,8 +242,6 @@ void loop() {
     unsigned long millinow = millis();
     bool changed = false;
     int i;
-    // TODO
-    bool l_boiler_on;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     // check timers
