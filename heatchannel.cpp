@@ -9,6 +9,7 @@
 #include "display.h"
 #include "myconfig.h"
 #include <ESPAsyncWebServer.h>
+#include "tempsensors.h"
 
 #include <mysyslog.h>
 
@@ -31,6 +32,7 @@ HeatChannel::HeatChannel(
     int a_target_temp2,
     bool a_enabled,
     int a_cooldown_duration,
+    int a_cooldown_mintemp,
     int a_y,
     int a_setback
 ) : m_id(a_id),
@@ -44,6 +46,7 @@ HeatChannel::HeatChannel(
     m_enabled(a_enabled),
     m_active(false),
     m_cooldown_duration(a_cooldown_duration),
+    m_cooldown_mintemp(a_cooldown_mintemp),
     m_endtime(0),
     m_cooldown_time(0),
     m_zv_output(false),
@@ -89,6 +92,12 @@ bool HeatChannel::updateTimers(time_t now, unsigned long millinow) {
             m_lastTime = time(NULL);
             syslogf(LOG_DAEMON|LOG_INFO,"%s cooldown finished",m_name);
             ret = true;
+        } else if (tempsensors_get("boiler.flow") < m_cooldown_mintemp) {
+            // cooldown flow is low enough, turn off
+            m_cooldown_time = 0;
+            m_lastTime = time(NULL);
+            syslogf(LOG_DAEMON|LOG_INFO,"%s cooldown finished early",m_name);
+            ret = true;
         }
     }
     if (m_enabled) {
@@ -118,6 +127,7 @@ void HeatChannel::adjustTimer(int dt) {
             break;
         case CHANNEL_TIMER_SLUDGE:
             // run cooldown cycle to circulate sludge
+            // TODO set m_endtime to 1/2 and check for this in updateTimers
             m_cooldown_time = 0;
             m_endtime = time(NULL)-1;
             break;
@@ -251,7 +261,8 @@ void HeatChannel::readConfig()
     m_target_temp1 = MyCfgGetInt("tgttmp",String(m_id), m_target_temp1);
     m_target_temp2 = MyCfgGetInt("tgttmp2",String(m_id), m_target_temp2);
     m_active = MyCfgGetInt("chactive",String(m_id), m_active);
-    m_cooldown_duration = MyCfgGetInt("circrun",String(m_id), m_cooldown_duration);
+    m_cooldown_duration = MyCfgGetInt("coolrun",String(m_id), m_cooldown_duration);
+    m_cooldown_mintemp = MyCfgGetInt("cooltmp",String(m_id), m_cooldown_mintemp);
 }
 
 HeatChannel channels[num_heat_channels] = {
@@ -263,6 +274,7 @@ HeatChannel channels[num_heat_channels] = {
                 65, -1, // target temps (warm not supported)
                 true,
                 HEAT_COOLDOWN,
+                60,
                 channel_y,
                 0),
 
@@ -274,6 +286,7 @@ HeatChannel channels[num_heat_channels] = {
                 65, 50, // target temp
                 true,
                 HEAT_COOLDOWN,
+                45,
                 channel_y+channel_spacing,
                 HEAT_SETBACK),
 
@@ -294,12 +307,14 @@ HeatChannel channels[num_heat_channels] = {
 static const char * cfg_set_targettemp(const char * name, const String & id, int &value) {
     int ch = id.toInt();
     if ((ch >= 0) && (ch <= num_heat_channels)) {
-        if (name == "tgttmp2") {
+        if (strcmp(name, "tgttmp2") == 0) {
             channels[ch].setTargetTemp2(value);
-        } else if (name == "tgttmp") {
+        } else if (strcmp(name, "tgttmp") == 0) {
             channels[ch].setTargetTemp1(value);
-        } else if (name == "circrun") {
-            channels[ch].setSludgeRuntime(value);
+        } else if (strcmp(name, "coolrun") == 0) {
+            channels[ch].setCooldownRuntime(value);
+        } else if (strcmp(name, "cooltmp") == 0) {
+            channels[ch].setCooldownMintemp(value);
         } else {
             return "Invalid setting";
         }
@@ -350,7 +365,8 @@ void heatchannel_setup() {
     xTaskCreate(input_watch, "inputwatch", 10000, NULL, 1, NULL);   
     MyCfgRegisterInt("tgttmp",&cfg_set_targettemp);
     MyCfgRegisterInt("tgttmp2",&cfg_set_targettemp);
-    MyCfgRegisterInt("circrun",&cfg_set_targettemp);
+    MyCfgRegisterInt("coolrun",&cfg_set_targettemp);
+    MyCfgRegisterInt("cooltmp",&cfg_set_targettemp);
     MyCfgRegisterInt("chactive",&cfg_set_active);
 }
 
