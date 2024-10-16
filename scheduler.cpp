@@ -486,7 +486,14 @@ void Scheduler::checkSchedule(int d, int h, int m)
             // we have found a slot which is on within the warmup window
             // so drop in to the next loop
             // remember the first temperature setting to use
-            targettemp = mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15];
+            // if we are in the warmup phase then run at the hotter setting if available
+            if (starttime == now) {
+                // we found an enabled slot on the first look so we are not in warmup
+                targettemp = mSchedule[w2.tm_wday][w2.tm_hour][w2.tm_min/15];
+            } else {
+                // we are in the warmup phase so run hot
+                targettemp = 2;
+            }
             break;
         }
 
@@ -570,7 +577,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
                 changed = false;
             } else if (currTimer == mLastSchedule) {
                 // same run time as we set up last time
-                // but looks like something changed
+                // but looks like something changed since we want something different
                 // we can shorten the time because it's one we set
 
                 // set our delta to take that into account
