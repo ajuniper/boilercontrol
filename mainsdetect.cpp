@@ -5,12 +5,14 @@
 #include "projectconfig.h"
 #include "mainsdetect.h"
 #include <mysyslog.h>
+#include "myconfig.h"
+#include <map>
 
 // input processing stuff
 // debounce interval
 #define I_DEBOUNCE 100
 // min distance from 0v to treat as "on"
-#define INPUT_ON_LIMIT 250
+#define INPUT_ON_LIMIT 350
 // smoothing for mains frequency - only look for volts for max 1/2 cycle
 #define MAINS_HZ 50
 #define INPUT_ON_MILLIS (1000/(MAINS_HZ*2))
@@ -19,6 +21,28 @@
 // note no pullup on selected pins
 #define MAINSDETECT_TESTMODE
 
+std::map<int, MainsDetect*> detectors;
+
+static const char * cfg_set_threshold(const char * name, const String & id, int &value) {
+    int i = id.toInt();
+    if (strcmp(name, "mainsthrsh") == 0) {
+        std::map<int, MainsDetect*>::iterator j = detectors.find(i);
+        if (j != detectors.end()) {
+            j->second->setThreshold(value);
+        } else {
+            return "Unknown pin";
+        }
+    } else {
+        return "Invalid selector";
+    }
+    return NULL;
+}
+
+static bool need_initialise = true;
+static void initialise() {
+    need_initialise = false;
+    MyCfgRegisterInt("mainsthrsh",&cfg_set_threshold);
+}
 
 MainsDetect::MainsDetect(int a_pin, const char * a_name1, const char * a_name2) :
     m_pin(a_pin),
@@ -31,6 +55,7 @@ MainsDetect::MainsDetect(int a_pin, const char * a_name1, const char * a_name2) 
     m_disabled(true)
 {
     //calibrate();
+    detectors[a_pin] = this;
 }
 
 // calibrate the zero volts level
@@ -38,6 +63,12 @@ void MainsDetect::calibrate() {
     m_disabled = true;
     if (m_pin == -1) { return; }
     char t2[100];
+
+    if (need_initialise) {
+        initialise();
+    }
+    m_threshold = MyCfgGetInt("mainsthrsh", String(m_pin), INPUT_ON_LIMIT);
+
 #ifdef MAINSDETECT_TESTMODE
     m_disabled = false;
     pinMode(m_pin, INPUT);
@@ -81,7 +112,7 @@ void MainsDetect::checkstate() {
     if (digitalRead(m_pin)==0) {
 #else
     int j = analogRead(m_pin);
-    if ((j < (m_zerov-INPUT_ON_LIMIT)) || (j > (m_zerov+INPUT_ON_LIMIT))) {
+    if ((j < (m_zerov-m_threshold)) || (j > (m_zerov+m_threshold))) {
 #endif
         // mains is on, reset counter, start debounce if required
         if (m_pinstate == 0) {

@@ -2,8 +2,11 @@ TEST
 
 FIX
 . touch screen flaky - reflow header on LCD
+. calibrate mains detectors
 . adjustTimer to ignore small changes
 . web show more config values
+. config value for mains detect threshold
+. boost temperature during warmup
 
 TODO
 . make web look like lcd

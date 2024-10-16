@@ -18,6 +18,9 @@ private:
     bool m_state;
     // if pin is disabled due to bad averaging
     bool m_disabled;
+    // the distance from 0v that will be treated as mains present
+    int m_threshold;
+
 public:
     MainsDetect(int a_pin, const char * a_name1, const char * a_name2);
 
@@ -32,4 +35,7 @@ public:
 
     // report debounced pin state
     bool pinstate() const { return m_state; }
+
+    // update the configured threshold
+    void setThreshold(int t) { m_threshold = t; }
 };

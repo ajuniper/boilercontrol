@@ -42,6 +42,7 @@ All requests are `GET` requests (yuk!)
 * `/config?name=boiler&id=wait&value=X` sets time in S to wait after setting each relay (3 seconds)
 * `/config?name=circtime&id=N&valueX` sets the sludge buster max time to sit idle in seconds (default 86400 = 1 day, 0 = off)
 * `/config?name=circrun&id=N&valueX` sets the sludge buster run time (default 120, 0 = off)
+* `/config?name=mainsthrsh&id=N&valueX` sets the mains detection threshold for pin N (default 350)
 
 Provided by the updater library:
 * `/update` gives page for doing OTA updates
