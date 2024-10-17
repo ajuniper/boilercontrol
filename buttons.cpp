@@ -9,6 +9,16 @@
 #include "heatchannel.h"
 #include "myconfig.h"
 
+// if conns are on left then (0,0) is bottom right
+// and we must reverse the coordinates
+#ifdef display_conns_on_left
+#define ch_x(_x,_w) ((display_max_x)-(_x)-(_w))
+#define ch_y(_y,_h) ((display_max_y)-(_y)-(_h))
+#else
+#define ch_x(_x,_w) (_x)
+#define ch_y(_y,_h) (_y)
+#endif
+
 // are we asking for hot or warm heat?
 static bool selected_temperatures[num_heat_channels];
 
@@ -18,10 +28,12 @@ void button_t::initialise()
 {
 #if 0
     // draw rectangle to identify touch area
-    tft.drawRect(m_x1-1,
-                 240-m_y1-1,
-                 2+m_x2-m_x1,
-                 2+m_y1-m_y2,
+    int x_w = 2+m_x2-m_x1;
+    int y_h = 2+m_y1-m_y2;
+    tft.drawRect(ch_x(m_x1-1,x_w),
+                 ch_y(240-m_y1-1,y_h),
+                 x_w,
+                 y_h,
                  TFT_BLUE);
 #endif
     int i;
@@ -147,16 +159,6 @@ static bool handle_dr_release (int , time_t a_duration)
     return false;
 }
 
-// if conns are on left then (0,0) is bottom right
-// and we must reverse the coordinates
-#ifdef display_conns_on_left
-#define ch_x(_x,_w) ((display_max_x)-(_x)-(_w))
-#define ch_y(_y,_h) ((display_max_y)-(_y)-(_h))
-#else
-#define ch_x(_x,_w) (_x)
-#define ch_y(_y,_h) (_y)
-#endif
-
 button_t buttons[] = {
     { ch_x(channel_label_x,channel_label_w),
       ch_y(channel_y + 0*channel_spacing,channel_icon_size),
@@ -204,7 +206,7 @@ button_t buttons[] = {
      */
 
     // invisible button bottom left to reset display
-    { 0, 220, 20, 20, &handle_dr_press, &handle_dr_release, 0 }
+    { ch_x(0,25), ch_y(215,25), 25, 25, &handle_dr_press, &handle_dr_release, 0 }
 };
 const size_t num_buttons = (sizeof(buttons)/sizeof(buttons[0]));
 
