@@ -662,7 +662,7 @@ void Scheduler::checkSchedule(int d, int h, int m)
             ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
             ((now - mChannel.lastTime()) > mSludgeInterval)) {
             // we can only run the sludge buster if all channels are inactive
-            if (o_boiler_state == OUTPUT_OFF) {
+            if ((o_boiler_on == false) && (o_pump_on == false)) {
                 syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
                 mChannel.adjustTimer(CHANNEL_TIMER_SLUDGE);
             }
