@@ -236,11 +236,14 @@ static void display_reset() {
         x+=temp_x;
     }
     last_touch = 0;
+    last_min = -1;
     display_needs_reset = false;
+    update_display();
 }
 
 // main display update task
 static void displaytask(void*) {
+    syslogf("Display starting");
     while(1) {
         time_t now = time(NULL);
 
