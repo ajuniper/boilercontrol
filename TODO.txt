@@ -1,12 +1,9 @@
 TEST
+. touch screen flaky - reflow header on LCD
 
 FIX
-. touch screen flaky - reflow header on LCD
-. calibrate mains detectors
-. adjustTimer to ignore small changes
 . web show more config values
-. config value for mains detect threshold
-. boost temperature during warmup
+. should boost during warmup consider flow/return temp?
 
 TODO
 . make web look like lcd
@@ -135,3 +132,7 @@ tempchannel to have multiple temps
 . sludgebuster should run for shorter time than cooldown
 . cooldown based on temperature
 . cooltime != circtime, during circ do not check temperature
+. config value for mains detect threshold
+. boost temperature during warmup
+. calibrate mains detectors
+. adjustTimer to ignore small changes
