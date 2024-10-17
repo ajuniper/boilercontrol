@@ -37,12 +37,13 @@ All requests are `GET` requests (yuk!)
 * `/config?name=tgttmp2&id=N&value=X` sets target warm temperature for channel N
 * `/config?name=cooltmp&id=N&value=X` sets min cooldown temperature for channel N
 * `/config?name=coolrun&id=N&valueX` sets the cooldown run time for channel N (default 120, 0 = off)
-* `/config?name=boiler&id=cyct&value=X` sets min off time for cycling boiler (default 120 seconds)
-* `/config?name=boiler&id=cycpc&value=X` sets percentage which flow must drop to end cycle (default 10%)
-* `/config?name=boiler&id=wait&value=X` sets time in S to wait after setting each relay (3 seconds)
 * `/config?name=circtime&id=N&valueX` sets the sludge buster max time to sit idle in seconds (default 86400 = 1 day, 0 = off)
 * `/config?name=circrun&id=N&valueX` sets the sludge buster run time (default 120, 0 = off)
 * `/config?name=mainsthrsh&id=N&valueX` sets the mains detection threshold for pin N (default 350)
+
+* `/config?name=boiler&id=cyct&value=X` sets min off time for cycling boiler (default 120 seconds)
+* `/config?name=boiler&id=cycpc&value=X` sets percentage which flow must drop to end cycle (default 10%)
+* `/config?name=boiler&id=wait&value=X` sets time in S to wait after setting each relay (3 seconds)
 
 Provided by the updater library:
 * `/update` gives page for doing OTA updates
@@ -108,4 +109,72 @@ schedule.[ch]
 curl -s 'http://boiler/config?name=trremap&id=0&value=28-ff641f79b51c46+boiler.flow+1'
 curl -s 'http://boiler/config?name=trremap&id=1&value=28-ff641f79b7e8c2+boiler.rethw+1'
 curl -s 'http://boiler/config?name=trremap&id=2&value=28-ff641f79b7d4df+boiler.retht+1'
+```
+
+## My House Settings
+
+### Boiler
+
+Extend zone valve duration a little beyond default
+```
+boiler.cyct = 120
+boiler.cycpc = 10
+boiler.wait = 5
+fcst.ahead = 5
+```
+
+### Hot Water
+
+Advance if 0 degrees in forecast by up to 15 minutes
+No boost or overrun
+Target temperature 65 degrees
+Circulate daily for a minute for sludge buster
+
+```
+wuBase = 0
+wuThrsh = 0
+wuScale = 180
+wuLimit = 900
+bstThrsh = -100
+orThrsh = -100
+orScale = 0
+orLimit = 0
+tgttmp = 65
+tgttmp2 = -1
+cooltmp = 60
+coolrun = 180
+circtime = 86400
+circrun = 60
+```
+
+### Heating
+
+Extend heating by up to an hour if forecast less than 8 degrees (extra 3 minutes per degree)
+Force heating hot if less than -3 degrees forecast
+Extend heating by up to half an hour if forecast less than -3 (extra 3 minutes per degree)
+Temperatures are 50 and 65 degrees
+Overrun until boiler temp is 45 or for 15 minutes
+Circulate daily for 2 minutes for sludge buster
+```
+wuBase = 1800
+wuThrsh = 8
+wuScale = 180
+wuLimit = 3600
+bstThrsh = -3
+orThrsh = -3
+orScale = 180
+orLimit = 1800
+tgttmp = 50
+tgttmp2 = 65
+cooltmp = 45
+coolrun = 900
+circtime = 86400
+circrun = 120
+```
+
+## Config backup
+
+```
+curl -s 'http://boiler/configlist' | while read a b ; do [[ $a = myconfig/* ]] || continue ; c="${a/./\&id=}" ; c="${c/myconfig\//http:\/\/boiler/config?name=}" ; v=$(curl -s "$c") ; echo "curl -s \"$c&value=$v\"" ; done
+
 ```
