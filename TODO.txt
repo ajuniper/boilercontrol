@@ -1,5 +1,6 @@
 TEST
-. touch screen flaky - reflow header on LCD
+. check ready pin behaviour states
+. check that mainsdetect is happy with half wave from mid position setting
 
 FIX
 . web show more config values
@@ -136,3 +137,5 @@ tempchannel to have multiple temps
 . boost temperature during warmup
 . calibrate mains detectors
 . adjustTimer to ignore small changes
+. touch screen flaky - reflow header on LCD
+. config value for mains detect INPUT_ON_MILLIS
