@@ -1,12 +1,12 @@
 //////////////////////////////////////////////////////////////////
 //
 // config for display layout and behaviour
-#ifndef __display_config_h__
-#define __display_config_h__
+#pragma once
 
+
+#include "projectconfig.h"
 #include "time.h"
 
-#define display_conns_on_left
 #ifdef display_conns_on_left
 #define display_rotation 3
 #else
@@ -90,5 +90,3 @@
 #define heat_io_x 318
 //#define heat_io_x 290
 #define heat_io_size 2
-
-#endif
