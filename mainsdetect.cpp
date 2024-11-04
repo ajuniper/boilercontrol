@@ -17,21 +17,18 @@
 #define MAINS_HZ 50
 #define INPUT_ON_MILLIS (1000/(MAINS_HZ*2))
 
-// for binary input testing, pull down to activate
-// note no pullup on selected pins
-#define MAINSDETECT_TESTMODE
-
 std::map<int, MainsDetect*> detectors;
 
 static const char * cfg_set_threshold(const char * name, const String & id, int &value) {
     int i = id.toInt();
+    std::map<int, MainsDetect*>::iterator j = detectors.find(i);
+    if (j == detectors.end()) {
+        return "Unknown pin";
+    }
     if (strcmp(name, "mainsthrsh") == 0) {
-        std::map<int, MainsDetect*>::iterator j = detectors.find(i);
-        if (j != detectors.end()) {
-            j->second->setThreshold(value);
-        } else {
-            return "Unknown pin";
-        }
+        j->second->setThreshold(value);
+    } else if (strcmp(name, "mainsticks") == 0) {
+        j->second->setTicks(value);
     } else {
         return "Invalid selector";
     }
@@ -42,6 +39,7 @@ static bool need_initialise = true;
 static void initialise() {
     need_initialise = false;
     MyCfgRegisterInt("mainsthrsh",&cfg_set_threshold);
+    MyCfgRegisterInt("mainsticks",&cfg_set_threshold);
 }
 
 MainsDetect::MainsDetect(int a_pin, const char * a_name1, const char * a_name2) :
@@ -52,7 +50,9 @@ MainsDetect::MainsDetect(int a_pin, const char * a_name1, const char * a_name2) 
     m_debounce(0),
     m_pinstate(0),
     m_state(false),
-    m_disabled(true)
+    m_disabled(true),
+    m_threshold(INPUT_ON_LIMIT),
+    m_ticks(INPUT_ON_MILLIS)
 {
     //calibrate();
     detectors[a_pin] = this;
@@ -68,6 +68,7 @@ void MainsDetect::calibrate() {
         initialise();
     }
     m_threshold = MyCfgGetInt("mainsthrsh", String(m_pin), INPUT_ON_LIMIT);
+    m_ticks = MyCfgGetInt("mainsticks", String(m_pin), INPUT_ON_MILLIS);
 
 #ifdef MAINSDETECT_TESTMODE
     m_disabled = false;
@@ -119,7 +120,7 @@ void MainsDetect::checkstate() {
             // trigger change check after debounce
             m_debounce = millis();
         }
-        m_pinstate = INPUT_ON_MILLIS;
+        m_pinstate = m_ticks;
     } else {
         // mains is off, decrement counter
         if (m_pinstate > 0) {

@@ -20,6 +20,9 @@ private:
     bool m_disabled;
     // the distance from 0v that will be treated as mains present
     int m_threshold;
+    // number of ticks to go before declaring off
+    // needs configurable in case half cycle from MPZV has gaps
+    int m_ticks;
 
 public:
     MainsDetect(int a_pin, const char * a_name1, const char * a_name2);
@@ -38,4 +41,5 @@ public:
 
     // update the configured threshold
     void setThreshold(int t) { m_threshold = t; }
+    void setTicks(int t) { m_ticks = t; }
 };
