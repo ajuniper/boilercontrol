@@ -8,14 +8,26 @@
 #include "time.h"
 
 #ifdef display_conns_on_left
+// if connections are on left then
+// display (0,0) is bottom right
+// touch (0,0) is top right
 #define display_rotation 3
 #else
+// if connections are on right then
+// display (0,0) is top left
+// touch (0,0) is bottom left
 #define display_rotation 1
 #endif
 #define display_max_x 320
 #define display_max_y 240
 
+// coordinate values below assume
+// display (0,0) is top left
+
+// millisecods
 #define touch_delay 25
+// microseconds
+#define touch_release_debounce 100000
 #define fontnum 1
 #define clock_font &FreeMonoBold18pt7b
 #define clock_x 190

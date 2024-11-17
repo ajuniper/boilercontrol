@@ -14,6 +14,7 @@
 #include <webupdater.h>
 #include <myconfig.h>
 #include "scheduledoutput.h"
+#include "buttons.h"
 
 // task to update outputs
 static TaskHandle_t outputtask_handle = NULL;
@@ -83,6 +84,7 @@ void setup() {
     webserver_setup();
     tempsensors_init();
     heatchannel_setup();
+    buttons_init();
 
     // start the display update task
     display_init();

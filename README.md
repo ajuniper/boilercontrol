@@ -45,6 +45,8 @@ All requests are `GET` requests (yuk!)
 * `/config?name=boiler&id=cycpc&value=X` sets percentage which flow must drop to end cycle (default 10%)
 * `/config?name=boiler&id=wait&value=X` sets time in S to wait after setting each relay (3 seconds)
 
+* `/config?name=showbutt&id=0&value=X` enable or disable showing button regions, 1=regions+touch, 2=regionsboxed+touch, 3=2+syslog touch
+
 Provided by the updater library:
 * `/update` gives page for doing OTA updates
 * `/update` use __POST__ request with body containing new firmware.bin

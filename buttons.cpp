@@ -8,15 +8,22 @@
 #include "display.h"
 #include "heatchannel.h"
 #include "myconfig.h"
+#include <mysyslog.h>
 
 // if conns are on left then (0,0) is bottom right
 // and we must reverse the coordinates
 #ifdef display_conns_on_left
-#define ch_x(_x,_w) ((display_max_x)-(_x)-(_w))
-#define ch_y(_y,_h) ((display_max_y)-(_y)-(_h))
+// if connections are on left then
+// display (0,0) is bottom right
+// touch (0,0) is top right
+#define x_t2d(_x) (display_max_x - _x)
+#define y_t2d(_y) (_y)
 #else
-#define ch_x(_x,_w) (_x)
-#define ch_y(_y,_h) (_y)
+// if connections are on right then
+// display (0,0) is top left
+// touch (0,0) is bottom left
+#define x_t2d(_x) (_x)
+#define y_t2d(_y) (display_max_y - _y)
 #endif
 
 // are we asking for hot or warm heat?
@@ -24,18 +31,28 @@ static bool selected_temperatures[num_heat_channels];
 
 extern bool display_needs_reset;
 
+// remember if the display was pressed or not last time thru
+static bool last_pressed = false;
+
+// should we show button regions?
+static int show_buttons = 0;
+
 void button_t::initialise()
 {
-#if 0
-    // draw rectangle to identify touch area
-    int x_w = 2+m_x2-m_x1;
-    int y_h = 2+m_y1-m_y2;
-    tft.drawRect(ch_x(m_x1-1,x_w),
-                 ch_y(240-m_y1-1,y_h),
-                 x_w,
-                 y_h,
-                 TFT_BLUE);
-#endif
+    if (show_buttons) {
+        // draw rectangle to identify touch area
+        int x = min(x_t2d(m_x1),x_t2d(m_x2));
+        int y = min(y_t2d(m_y1),y_t2d(m_y2));
+        int x_w = 2+m_x2-m_x1;
+        int y_h = 2+m_y2-m_y1;
+        if (show_buttons > 1) {
+            tft.fillRect(x, y, x_w, y_h, TFT_BLUE);
+        } else {
+            tft.drawRect(x, y, x_w, y_h, TFT_BLUE);
+        }
+        syslogf("button at (%d..%d,%d..%d) handle %d",m_x1,m_x2,m_y1,m_y2,m_handle);
+    }
+
     int i;
     for(i=0;i<num_heat_channels;++i) {
         selected_temperatures[i]=false;
@@ -47,6 +64,9 @@ void button_t::checkPressed(uint16_t a_x, uint16_t a_y)
     time_t now = time(NULL);
     if ((a_x >= m_x1) && (a_x <= m_x2) &&
         (a_y >= m_y1) && (a_y <= m_y2)) {
+        // record when the button was last seen pressed
+        m_presstime_us = esp_timer_get_time();
+
         // pressed
         if (m_presstime == 0) {
             // record press time
@@ -62,11 +82,14 @@ void button_t::checkPressed(uint16_t a_x, uint16_t a_y)
     } else {
         // not pressed, but was it before?
         if (m_presstime != 0) {
-            // notify release just once
-            (*m_released)(m_handle, now - m_presstime);
-            m_presstime = 0;
-            m_lastnotifytime = 0;
-            m_mustrelease = false;
+            // delay release a while in case it's not really released
+            if (esp_timer_get_time() > (m_presstime_us + touch_release_debounce)) {
+                // notify release just once
+                (*m_released)(m_handle, now - m_presstime);
+                m_presstime = 0;
+                m_lastnotifytime = 0;
+                m_mustrelease = false;
+            }
         }
     }
 }
@@ -159,63 +182,98 @@ static bool handle_dr_release (int , time_t a_duration)
     return false;
 }
 
+// passed coordinates assume (0,0) is top left
+// y coordinate is bottom left of rectange since that is how text works
+// we must flip that to align with touch (0,0) bottom left
+// and then deal with display rotation too
+button_t::button_t(int a_x, int a_y,
+         int a_w, int a_h,
+         bool (*a_p)(int, time_t),
+         bool (*a_r)(int, time_t),
+         int a_i
+        ) :
+    m_presstime(0),
+    m_presstime_us(0),
+    m_lastnotifytime(0),
+    m_pressed(a_p),
+    m_released(a_r),
+    m_handle(a_i),
+    m_mustrelease(false)
+{
+    int x1 = x_t2d(max(0,a_x-button_expand));
+    int x2 = x_t2d(min(display_max_x,a_x+a_w+button_expand));
+    m_x1 = min(x1,x2);
+    m_x2 = max(x1,x2);
+
+    int y1 = y_t2d(max(0,a_y - button_expand));
+    int y2 = y_t2d(min(display_max_y,a_y + a_h + button_expand));
+    m_y1 = min(y1,y2);
+    m_y2 = max(y1,y2);
+};
+
+// coordinates assume (0,0) is top left and give the lower left corner location
 button_t buttons[] = {
-    { ch_x(channel_label_x,channel_label_w),
-      ch_y(channel_y + 0*channel_spacing,channel_icon_size),
+    { channel_label_x,
+      channel_y + 0*channel_spacing,
       channel_label_w, channel_icon_size,
       &handle_press_label, &handle_release_label, 0 },
-    { ch_x(channel_label_x,channel_label_w),
-      ch_y(channel_y + 1*channel_spacing,channel_icon_size),
+    { channel_label_x,
+      channel_y + 1*channel_spacing,
       channel_label_w, channel_icon_size,
       &handle_press_label, &handle_release_label, 1 },
     /*
-    { ch_x(channel_label_x,channel_label_w),
-      ch_y(channel_y + 2*channel_spacing,channel_icon_size),
+    { channel_label_x,
+      channel_y + 2*channel_spacing,
       channel_label_w, channel_icon_size,
       &handle_press_label, &handle_release_label, 2 },
      */
 
-    { ch_x(channel_active_x,channel_active_w),
-      ch_y(channel_y + 0*channel_spacing,channel_icon_size),
+    { channel_active_x,
+      channel_y + 0*channel_spacing,
       channel_active_w, channel_icon_size,
       &handle_press_active, &handle_release_active, 0 },
-    { ch_x(channel_active_x,channel_active_w),
-      ch_y(channel_y + 1*channel_spacing,channel_icon_size),
+    { channel_active_x,
+      channel_y + 1*channel_spacing,
       channel_active_w, channel_icon_size,
       &handle_press_active, &handle_release_active, 1 },
     /*
-    { ch_x(channel_active_x,channel_active_w),
-      ch_y(channel_y + 2*channel_spacing,channel_icon_size),
+    { channel_active_x,
+      channel_y + 2*channel_spacing,
       channel_active_w, channel_icon_size,
       &handle_press_active, &handle_release_active, 2 },
      */
 
-    { ch_x(channel_timer_x,channel_timer_w),
-      ch_y(channel_y + 0*channel_spacing,channel_icon_size),
+    { channel_timer_x,
+      channel_y + 0*channel_spacing,
       channel_timer_w, channel_icon_size,
       &handle_press_timer, &handle_release_timer, 0 },
-    { ch_x(channel_timer_x,channel_timer_w),
-      ch_y(channel_y + 1*channel_spacing,channel_icon_size),
+    { channel_timer_x,
+      channel_y + 1*channel_spacing,
       channel_timer_w, channel_icon_size,
       &handle_press_timer, &handle_release_timer, 1 },
     /*
-    { ch_x(channel_timer_x,channel_timer_w),
-      ch_y(channel_y + 2*channel_spacing,channel_icon_size),
+    { channel_timer_x,
+      channel_y + 2*channel_spacing,
       channel_timer_w, channel_icon_size,
       &handle_press_timer, &handle_release_timer, 2 },
      */
 
     // invisible button bottom left to reset display
-    { ch_x(0,25), ch_y(215,25), 25, 25, &handle_dr_press, &handle_dr_release, 0 }
+    { 0, 215, 25, 25, &handle_dr_press, &handle_dr_release, 0 }
 };
 const size_t num_buttons = (sizeof(buttons)/sizeof(buttons[0]));
 
-// remember if the display was pressed or not last time thru
-static bool last_pressed = false;
-
 bool check_touch() {
-    uint16_t t_x = 0, t_y = 0; // To store the touch coordinates
+    // To store the touch coordinates, initialise as out of range
+    uint16_t t_x = 65535, t_y = 65535;
     bool pressed = tft.getTouch(&t_x,&t_y);
+
+    if ((pressed) && (show_buttons > 0)) {
+        tft.drawPixel(x_t2d(t_x), y_t2d(t_y), TFT_CYAN);
+        if (show_buttons > 2) {
+            syslogf("display touch at %d,%d",t_x,t_y);
+        }
+    }
 
     int i;
     for(i=0; i<num_buttons; ++i) {
@@ -224,4 +282,15 @@ bool check_touch() {
     bool ret = (last_pressed != pressed);
     last_pressed = pressed;
     return ret;
+}
+
+static const char * cfg_set_showbuttons(const char * name, const String & id, int &value) {
+    // ignore ID
+    show_buttons = value;
+    display_needs_reset = true;
+    return NULL;
+}
+void buttons_init() {
+    MyCfgRegisterInt("showbutt",&cfg_set_showbuttons);
+    show_buttons = MyCfgGetInt("showbutt", String("0"), show_buttons);
 }
