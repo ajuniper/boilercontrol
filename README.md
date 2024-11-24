@@ -39,7 +39,7 @@ All requests are `GET` requests (yuk!)
 * `/config?name=coolrun&id=N&valueX` sets the cooldown run time for channel N (default 120, 0 = off)
 * `/config?name=circtime&id=N&valueX` sets the sludge buster max time to sit idle in seconds (default 86400 = 1 day, 0 = off)
 * `/config?name=circrun&id=N&valueX` sets the sludge buster run time (default 120, 0 = off)
-* `/config?name=mainsthrsh&id=N&valueX` sets the mains detection threshold for pin N (default 350)
+* `/config?name=mainsthrsh&id=N&valueX` sets the mains detection threshold for pin N (default 350, pins 34, 35 ,36, 39 )
 
 * `/config?name=boiler&id=cyct&value=X` sets min off time for cycling boiler (default 120 seconds)
 * `/config?name=boiler&id=cycpc&value=X` sets percentage which flow must drop to end cycle (default 10%)
@@ -127,49 +127,74 @@ fcst.ahead = 5
 
 ### Hot Water
 
-Advance if 0 degrees in forecast by up to 15 minutes
-No boost or overrun
-Target temperature 65 degrees
-Circulate daily for a minute for sludge buster
+No warm up time to be added
 
 ```
 wuBase = 0
+```
+Advance if 0 degrees in forecast by up to 15 minutes
+```
 wuThrsh = 0
 wuScale = 180
 wuLimit = 900
+```
+No boost or overrun
+```
 bstThrsh = -100
 orThrsh = -100
 orScale = 0
 orLimit = 0
+```
+Target temperature 65 degrees, only one run temperature
+```
 tgttmp = 65
 tgttmp2 = -1
+```
+Only run cooldown cycle for 3 minutes or until less than 60 degrees
+```
 cooltmp = 60
 coolrun = 180
+```
+Circulate daily for a minute for sludge buster
+```
 circtime = 86400
 circrun = 60
 ```
 
 ### Heating
 
-Extend heating by up to an hour if forecast less than 8 degrees (extra 3 minutes per degree)
-Force heating hot if less than -3 degrees forecast
-Extend heating by up to half an hour if forecast less than -3 (extra 3 minutes per degree)
-Temperatures are 50 and 65 degrees
-Overrun until boiler temp is 45 or for 15 minutes
-Circulate daily for 2 minutes for sludge buster
+Heating always needs 45min warmup
 ```
-wuBase = 1800
+wuBase = 2700
+```
+Extend heating by up to an hour if forecast less than 8 degrees (extra 4 minutes per degree)
+```
 wuThrsh = 8
-wuScale = 180
+wuScale = 240
 wuLimit = 3600
+```
+Force heating hot if less than -3 degrees forecast
+```
 bstThrsh = -3
+```
+Extend heating by up to half an hour if forecast less than -3 (extra 3 minutes per degree)
+```
 orThrsh = -3
 orScale = 180
 orLimit = 1800
-tgttmp = 50
-tgttmp2 = 65
+```
+Temperatures are 50 and 65 degrees
+```
+tgttmp = 65
+tgttmp2 = 50
+```
+Overrun until boiler temp is 45 or for 15 minutes
+```
 cooltmp = 45
 coolrun = 900
+```
+Circulate daily for 2 minutes for sludge buster
+```
 circtime = 86400
 circrun = 120
 ```
