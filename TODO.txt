@@ -1,10 +1,11 @@
 TEST
-. check ready pin behaviour states
-. check that mainsdetect is happy with half wave from mid position setting
 
 FIX
+. force reset 1wire bus if no sensors - how?
+
 . web show more config values
 . should boost during warmup consider flow/return temp?
+. should forecast tracker look at highs as well?
 
 TODO
 . make web look like lcd
@@ -139,3 +140,9 @@ tempchannel to have multiple temps
 . adjustTimer to ignore small changes
 . touch screen flaky - reflow header on LCD
 . config value for mains detect INPUT_ON_MILLIS
+. check ready pin behaviour states
+. check that mainsdetect is happy with half wave from mid position setting
+. add +15m option to web
+. add status web page showing bssid, cpu%, ram, etc.
+. save core dumps to flash and serve via web
+. correctly pick best SSID at boot
