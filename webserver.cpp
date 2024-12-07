@@ -125,15 +125,17 @@ static String statuspage_processor(const String& var){
         if (channels[i].getActive()) {
             if (channels[i].targetTemp2() > -1) {
                 s+="Warm: ";
+                s+="<a href=\"heat?ch="; s+=ch ; s+="&q=900&t=1\">+15m</a> ";
                 s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600&t=1\">+1h</a> ";
                 s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200&t=1\">+2h</a> ";
-                s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=1\">+3h</a> ";
+                //s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=1\">+3h</a> ";
                 s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+= CHANNEL_TIMER_ON ; s+="&t=1\">On</a> ";
                 s+="<br/>Hot: ";
             }
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=900&t=2\">+15m</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600&t=2\">+1h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200&t=2\">+2h</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=2\">+3h</a> ";
+            //s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=2\">+3h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_ON ; s+="&t=2\">On</a><br/>";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_OFF ; s+="\">Off</a> ";
             s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=0\">Disable</a> ";
