@@ -15,6 +15,7 @@
 #include <myconfig.h>
 #include "scheduledoutput.h"
 #include "buttons.h"
+#include <mysystem.h>
 
 // task to update outputs
 static TaskHandle_t outputtask_handle = NULL;
@@ -82,6 +83,7 @@ void setup() {
     SyslogInit("boiler");
     xTaskCreate(output_task, "outputs", 10000, NULL, 1, &outputtask_handle);
     webserver_setup();
+    SYS_init();
     tempsensors_init();
     heatchannel_setup();
     buttons_init();
