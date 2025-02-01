@@ -69,8 +69,9 @@ public:
     MainsDetect & getInputSatisfied() { return m_satisfied; }
     void adjustTimer(int dt);
     // set the output state to the zv
-    void setOutput(bool state, time_t when = 0);
-    void setSatisfied(bool state, time_t when = 0);
+    // returns true if state changes
+    bool setOutput(bool state, time_t when = 0);
+    bool setSatisfied(bool state, time_t when = 0);
     // update the output pin as required, and
     // return true if change is scheduled, false otherwise
     bool setOutputPin(time_t now);

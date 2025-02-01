@@ -168,21 +168,28 @@ void HeatChannel::adjustTimer(int dt) {
     m_lastTime = time(NULL);
 }
 // set the output state to the zv
-void HeatChannel::setOutput(bool state, time_t when) {
+// returns true if state changes
+bool HeatChannel::setOutput(bool state, time_t when) {
     if ((m_enabled == false ) || (m_pin_zv == -1)) {
-        return;
+        return false;
     }
+    bool changed = false;
     if (state != m_zv_output.setState(state,when)) {
         syslogf(LOG_DAEMON | LOG_INFO, "%s request output set to %s at %d",m_name,state?"on":"off",when);
+        changed = true;
     }
+    return changed;
 }
-void HeatChannel::setSatisfied(bool state, time_t when) {
+bool HeatChannel::setSatisfied(bool state, time_t when) {
     if ((m_enabled == false ) || (m_pin_zv_satisfied == -1)) {
-        return;
+        return false;
     }
+    bool changed = false;
     if (state != m_zv_satisfied_output.setState(state,when)) {
         syslogf(LOG_DAEMON | LOG_INFO, "%s request satisfied set to %s at %d",m_name,state?"on":"off",when);
+        changed = true;
     }
+    return changed;
 }
 
 // update the output pin as required, and
