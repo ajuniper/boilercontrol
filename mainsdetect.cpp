@@ -29,6 +29,8 @@ static const char * cfg_set_threshold(const char * name, const String & id, int 
         j->second->setThreshold(value);
     } else if (strcmp(name, "mainsticks") == 0) {
         j->second->setTicks(value);
+    } else if (strcmp(name, "mainsdbnc") == 0) {
+        j->second->setDebounceT(value);
     } else {
         return "Invalid selector";
     }
@@ -40,6 +42,7 @@ static void initialise() {
     need_initialise = false;
     MyCfgRegisterInt("mainsthrsh",&cfg_set_threshold);
     MyCfgRegisterInt("mainsticks",&cfg_set_threshold);
+    MyCfgRegisterInt("mainsdbnc",&cfg_set_threshold);
 }
 
 MainsDetect::MainsDetect(int a_pin, const char * a_name1, const char * a_name2) :
@@ -52,7 +55,8 @@ MainsDetect::MainsDetect(int a_pin, const char * a_name1, const char * a_name2) 
     m_state(false),
     m_disabled(true),
     m_threshold(INPUT_ON_LIMIT),
-    m_ticks(INPUT_ON_MILLIS)
+    m_ticks(INPUT_ON_MILLIS),
+    m_debounce_t(I_DEBOUNCE)
 {
     //calibrate();
     detectors[a_pin] = this;
@@ -69,6 +73,7 @@ void MainsDetect::calibrate() {
     }
     m_threshold = MyCfgGetInt("mainsthrsh", String(m_pin), INPUT_ON_LIMIT);
     m_ticks = MyCfgGetInt("mainsticks", String(m_pin), INPUT_ON_MILLIS);
+    m_debounce_t = MyCfgGetInt("mainsdbnc", String(m_pin), I_DEBOUNCE);
 
 #ifdef MAINSDETECT_TESTMODE
     m_disabled = false;
@@ -139,13 +144,13 @@ bool MainsDetect::updatepin(unsigned long a_millinow) {
     if (m_pin == -1) { return false; }
     unsigned long debounce;
     if (((debounce = m_debounce) > 0) &&
-        ((a_millinow - debounce) > I_DEBOUNCE)) {
+        ((a_millinow - debounce) > m_debounce_t)) {
         m_debounce = 0;
         bool x = (m_pinstate > 0);
         if (x != m_state) {
             // only action a change if it changed
             m_state = x;
-            syslogf(LOG_DAEMON | LOG_INFO, "%s %s %s",m_name1,m_name2,m_state?"set":"cleared");
+            syslogf(LOG_DAEMON | LOG_INFO, "%s %s input %s",m_name1,m_name2,m_state?"set":"cleared");
             return true;
         }
     }
