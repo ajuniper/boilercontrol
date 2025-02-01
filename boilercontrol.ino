@@ -275,17 +275,30 @@ void loop() {
             // something is calling for heat
             int tt = 0;
 
-            // action the satisfied relays
+            // action the ZV relays
             // if we get to this loop then something IS calling for fire
             // cool down is not possible if something is calling for fire
+            // TODO temporary disable pump and boiler while relays change
             for (i=0; i<num_heat_channels; ++i) {
                 // we must set satisfied to indicate to not send heat to this channel
                 // if the channel is satisfied or this channel is not asking for heat
                 // (which can include cooldown too)
                 // these changes are start-of-sequence so happen immediately
-                channels[i].setSatisfied((!channels[i].canFire()) || channels[i].isSatisfied());
-                // action the zone valves
-                channels[i].setOutput(channels[i].wantFire());
+                bool satNew = (!channels[i].canFire()) || channels[i].isSatisfied();
+                bool runNew = channels[i].wantFire();
+                // sequence the requests so that we do not have a temporary contradiction
+                // must not have both sat and run set
+                // if sat is turning on and we are already running then turn off run first
+                // and vice versa
+                if (satNew) {
+                    // must turn run off first
+                    channels[i].setOutput(runNew,now);
+                    channels[i].setSatisfied(satNew,now+1);
+                } else {
+                    // must turn sat off first
+                    channels[i].setSatisfied(satNew,now);
+                    channels[i].setOutput(runNew,now+1);
+                }
             }
 
             // turn the pump and boiler on as required
@@ -318,14 +331,30 @@ void loop() {
                 // something is asking for cooldown
                 // this ensures other ZVs are closed
 
-                // action the satisfied relays immediately
+                // action the ZV relays
+                // if we get to this loop then something IS calling for cooldown
+                // and nothing is calling for heat
+                // TODO temporary disable pump and boiler while relays change
                 for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setSatisfied(channels[i].isSatisfied());
-                }
-
-                // set the zone valves immediately
-                for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setOutput(channels[i].wantCooldown());
+                    // we must set satisfied to indicate to not send heat to this channel
+                    // if the channel is satisfied or this channel is not asking for heat
+                    // (which can include cooldown too)
+                    // these changes are start-of-sequence so happen immediately
+                    bool satNew = channels[i].isSatisfied();
+                    bool runNew = channels[i].wantCooldown();
+                    // sequence the requests so that we do not have a temporary contradiction
+                    // must not have both sat and run set
+                    // if sat is turning on and we are already running then turn off run first
+                    // and vice versa
+                    if (satNew) {
+                        // must turn run off first
+                        channels[i].setOutput(runNew,now);
+                        channels[i].setSatisfied(satNew,now+1);
+                    } else {
+                        // must turn sat off first
+                        channels[i].setSatisfied(satNew,now);
+                        channels[i].setOutput(runNew,now+1);
+                    }
                 }
 
                 // and set the pump/boiler
