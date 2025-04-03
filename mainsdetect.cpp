@@ -95,13 +95,13 @@ void MainsDetect::calibrate() {
     }
     // calculate the average
     m_zerov=a/j;
-    sprintf(t2,"Av for pin %d is %d\n",m_pin,m_zerov);
-    Serial.print(t2);
+    //sprintf(t2,"Av for pin %d is %d\n",m_pin,m_zerov);
+    //Serial.print(t2);
     if (m_zerov < 1500) {
         // not there, disable
         // TODO watch for pin coming back?
-        sprintf(t2,"disabled pin %d zerov %d",m_pin,m_zerov);
-        Serial.println(t2);
+        //sprintf(t2,"disabled pin %d zerov %d",m_pin,m_zerov);
+        //Serial.println(t2);
     } else {
         m_disabled = false;
     }
