@@ -60,8 +60,9 @@ Provided by tempreporter library:
 * `/config?name=trpin&id=(18b20|dht11)[&value=N]` sets or gets the pin associated with the different sensors (reboot after to take effect)
 
 Provided by the tempfetcher library
-* `/config?name=fcst&id=rate&value=X` sets the hours between fetching forecasts
+* `/config?name=fcst&id=rate&value=X` sets the minutes between fetching forecasts
 * `/config?name=fcst&id=ahead&value=X` sets the number of hours ahead to look for lowest temperature
+* `/config?name=fcst&id=behind&value=X` sets the number of hours behind to look for lowest temperature
 * `/config?name=weather&id=url&value=x` sets the URL to retrieve weather forecasts from
 
 ## Expected sensor names
