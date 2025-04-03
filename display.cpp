@@ -17,6 +17,12 @@ TFT_eSPI tft = TFT_eSPI();
 
 bool display_needs_reset = false;
 
+#if ESP_IDF_VERSION_MAJOR < 5
+#define LEDC_WRITE_ARG 0
+#else
+#define LEDC_WRITE_ARG PIN_DISPLAY_LED
+#endif
+
 //////////////////////////////////////////////////////////////////
 //
 // update clock and IP
@@ -177,7 +183,7 @@ static void wait_for_touch() {
     // To store the touch coordinates
     uint16_t t_x = 0, t_y = 0;
     // display off
-    ledcWrite(0, 0);
+    ledcWrite(LEDC_WRITE_ARG, 0);
     // enable IRQ
     attachInterrupt(digitalPinToInterrupt(PIN_TOUCH_IRQ), display_irq, FALLING);
     // wait for signal
@@ -188,7 +194,7 @@ static void wait_for_touch() {
 
     // update the display then light it up
     update_display();
-    ledcWrite(0, display_brightness);
+    ledcWrite(LEDC_WRITE_ARG, display_brightness);
     // wait for touch to be released before continuing
     while (tft.getTouch(&t_x,&t_y)) {
         delay(touch_delay);
@@ -211,12 +217,16 @@ static void display_reset() {
     tft.setTextDatum(TR_DATUM);
     tft.setTextSize(1);
 
+#if ESP_IDF_VERSION_MAJOR < 5
     // PWM channel freq resolution
     ledcSetup(0, 5000, 8);
     // add pin to PWM channel
     ledcAttachPin(PIN_DISPLAY_LED,0);
+#else
+    ledcAttach(PIN_DISPLAY_LED, 5000, 8);
+#endif
     // default brightness
-    ledcWrite(0, display_brightness);
+    ledcWrite(LEDC_WRITE_ARG, display_brightness);
 
     // draw channels
     int i;

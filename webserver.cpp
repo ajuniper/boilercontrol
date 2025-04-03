@@ -54,7 +54,7 @@ static String statuspage_processor(const String& var){
   char ch;
   if(var == "STATUS"){
     int i;
-    unsigned long t;
+    time_t t;
     s+="<p><table border=\"1\">";
     s+="<tr><td/>";
     for(i=0; i<num_heat_channels; ++i) {
@@ -179,9 +179,9 @@ static String statuspage_processor(const String& var){
         s += "</td></tr><tr><td>";
         s += temperatures[i].getName();
         s += "</td><td>";
-        int t = temperatures[i].getTemp();
-        if (t != 999) {
-            s += String(t)+"C ";
+        int c = temperatures[i].getTemp();
+        if (c != 999) {
+            s += String(c)+"C ";
         } else {
             s += "--- ";
         }
