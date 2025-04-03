@@ -119,6 +119,9 @@ static void output_task (void *)
     int last_target_temp = target_temp;
     time_t boiler_cycle_time = 0;
     int hysteresis = 100 - 10;
+    int i;
+    bool need_suspend = false;
+    bool last_suspend;
 
     while(1) {
         // wait for signal
@@ -137,6 +140,19 @@ static void output_task (void *)
                 boiler_cycle_time = 0;
             }
 
+            last_suspend = need_suspend;
+            need_suspend = false;
+            for (i=0; i<num_heat_channels; ++i) {
+                need_suspend |= channels[i].isChanging(now);
+            }
+            if (need_suspend != last_suspend) {
+                if (need_suspend) {
+                    syslogf(LOG_DAEMON|LOG_WARNING, "Suspending pump and boiler for valve change");
+                } else {
+                    syslogf(LOG_DAEMON|LOG_WARNING, "Resuming pump and boiler after valve change");
+                }
+            }
+
             // recalculate whether the boiler should be running or not
             // this is where we are cycling the boiler to temperature
             if (this_boiler == false) {
@@ -145,6 +161,11 @@ static void output_task (void *)
                 waittime = 3600 * 1000; // 1hr
                 o_boiler_state = OUTPUT_OFF;
 
+            } else if (need_suspend) {
+                // zone valves are changing, we should turn pump and boiler off
+                waittime = 1000; // 1s
+                o_boiler_state = OUTPUT_OFF; // OUTPUT_SUSPEND
+                this_boiler = false;
             } else if (boiler_cycle_time > now) {
                 // boiler is already cycled off by time so nothing to do
                 // just wait until the end of the cycle window unless
@@ -192,7 +213,11 @@ static void output_task (void *)
             }
 
             // calculate what the pump should be doing
-            if (o_pump_on.checkState(now)) {
+            if (need_suspend) {
+                // pump should be off for zv change
+                this_pump = false;
+                o_pump_state = OUTPUT_OFF; // OUTPUT_SUSPEND
+            } else if (o_pump_on.checkState(now)) {
                 this_pump = true;
                 // update what the pump is doing
                 // if boiler is on or cycling then we are heating
@@ -207,7 +232,6 @@ static void output_task (void *)
             digitalWrite(PIN_O_PUMP_ON, this_pump?RELAY_ON:RELAY_OFF);
             digitalWrite(PIN_O_BOILER_ON, this_boiler?RELAY_ON:RELAY_OFF);
 
-            int i;
             for (i=0; i<num_heat_channels; ++i) {
                 if (channels[i].setOutputPin(now)) {
                     waittime = min((TickType_t(500)), waittime);
@@ -279,6 +303,7 @@ void loop() {
             // if we get to this loop then something IS calling for fire
             // cool down is not possible if something is calling for fire
             // TODO temporary disable pump and boiler while relays change
+            // TODO can we detect change in progress by output != input?
             for (i=0; i<num_heat_channels; ++i) {
                 // we must set satisfied to indicate to not send heat to this channel
                 // if the channel is satisfied or this channel is not asking for heat
@@ -292,12 +317,12 @@ void loop() {
                 // and vice versa
                 if (satNew) {
                     // must turn run off first
-                    channels[i].setOutput(runNew,now);
-                    channels[i].setSatisfied(satNew,now+1);
+                    channels[i].setOutput(runNew,now+1);
+                    channels[i].setSatisfied(satNew,now+2);
                 } else {
                     // must turn sat off first
-                    channels[i].setSatisfied(satNew,now);
-                    channels[i].setOutput(runNew,now+1);
+                    channels[i].setSatisfied(satNew,now+1);
+                    channels[i].setOutput(runNew,now+2);
                 }
             }
 
@@ -346,11 +371,19 @@ void loop() {
                     // must not have both sat and run set
                     // if sat is turning on and we are already running then turn off run first
                     // and vice versa
-                    if (satNew) {
+                    // scrub that
+                    // if we are now satisfied then we must enable satisfied to
+                    // stop sending hw to tank at mpzv before we close the tank zv
+                    // ditto v.v. if we are not satisfied (i.e. want heat to tank)
+                    // then we must turn on tank zv to permit flow before we
+                    // disable the satisfied output to permit tank flow from mpzv
+                    if (!satNew) {
+                        // want heat to tank
                         // must turn run off first
                         channels[i].setOutput(runNew,now);
                         channels[i].setSatisfied(satNew,now+1);
                     } else {
+                        // do not want heat to tank
                         // must turn sat off first
                         channels[i].setSatisfied(satNew,now);
                         channels[i].setOutput(runNew,now+1);
@@ -376,13 +409,14 @@ void loop() {
                 o_pump_on.setState(false,now+relaywait);
 
                 // action the satisfied relays to off, not needed
+                int d=0;
                 for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setSatisfied(false,now+relaywait+relaywait);
+                    channels[i].setSatisfied(false,now+relaywait+relaywait+(d++));
                 }
 
                 // action the zone valves to off
                 for (i=0; i<num_heat_channels; ++i) {
-                    channels[i].setOutput(false,now+relaywait+relaywait);
+                    channels[i].setOutput(false,now+relaywait+relaywait+(d++));
                 }
 
                 syslogf(LOG_DAEMON | LOG_WARNING, "Pump and boiler off");

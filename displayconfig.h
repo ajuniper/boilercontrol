@@ -75,6 +75,7 @@
 #define pump_h 24
 #define pump_colour TFT_RED
 #define pump_colour2 TFT_BLUE
+#define pump_colour3 TFT_MAROON
 
 #define flame_x 270
 #define flame_y 0
@@ -82,6 +83,7 @@
 #define flame_h 24
 #define flame_colour TFT_RED
 #define flame_colour2 TFT_BLUE
+#define flame_colour3 TFT_MAROON
 
 #define wifi_x 225
 #define wifi_y 0

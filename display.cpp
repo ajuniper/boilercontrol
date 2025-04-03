@@ -76,11 +76,13 @@ static void draw_outputs() {
 
     switch (o_boiler_state) {
         case OUTPUT_OFF: bc = TFT_DARKGREY; break;
+        case OUTPUT_SUSPEND: bc = flame_colour3; break;
         case OUTPUT_COOLING: bc = flame_colour2; break;
         case OUTPUT_HEATING: bc = flame_colour; break;
     }
     switch (o_pump_state) {
         case OUTPUT_OFF: pc = TFT_DARKGREY; break;
+        case OUTPUT_SUSPEND: pc = pump_colour3; break;
         case OUTPUT_COOLING: pc = pump_colour2; break;
         case OUTPUT_HEATING: pc = pump_colour; break;
     }

@@ -16,9 +16,11 @@
 #ifdef SHORT_TIMES
 #define HEAT_COOLDOWN 30
 #define HEAT_SETBACK 60
+#define HEAT_SUSPEND 5
 #else
 #define HEAT_COOLDOWN 600
 #define HEAT_SETBACK (45*60)
+#define HEAT_SUSPEND 15
 #endif
 
 HeatChannel::HeatChannel(
@@ -54,8 +56,11 @@ HeatChannel::HeatChannel(
     m_zv_output(false),
     m_zv_satisfied_output(false),
     m_changed(true), // trigger output setup first time around
-    m_y(a_y),
-    m_scheduler(*this, a_setback)
+    m_scheduler(*this, a_setback),
+    m_suspendUntil(0),
+    m_suspend_duration(HEAT_SUSPEND),
+    m_y(a_y)
+
 {
     if (m_pin_zv > -1) {
         digitalWrite(m_pin_zv, RELAY_OFF);
@@ -167,6 +172,7 @@ void HeatChannel::adjustTimer(int dt) {
     // buster triggers before the main task stops the burner
     m_lastTime = time(NULL);
 }
+
 // set the output state to the zv
 // returns true if state changes
 bool HeatChannel::setOutput(bool state, time_t when) {
@@ -177,6 +183,7 @@ bool HeatChannel::setOutput(bool state, time_t when) {
     if (state != m_zv_output.setState(state,when)) {
         syslogf(LOG_DAEMON | LOG_INFO, "%s request output set to %s at %d",m_name,state?"on":"off",when);
         changed = true;
+        needSuspend();
     }
     return changed;
 }
@@ -188,6 +195,7 @@ bool HeatChannel::setSatisfied(bool state, time_t when) {
     if (state != m_zv_satisfied_output.setState(state,when)) {
         syslogf(LOG_DAEMON | LOG_INFO, "%s request satisfied set to %s at %d",m_name,state?"on":"off",when);
         changed = true;
+        needSuspend();
     }
     return changed;
 }
@@ -283,6 +291,7 @@ void HeatChannel::readConfig()
     m_cooldown_duration = MyCfgGetInt("coolrun",String(m_id), m_cooldown_duration);
     m_cooldown_mintemp = MyCfgGetInt("cooltmp",String(m_id), m_cooldown_mintemp);
     m_sludge_duration = MyCfgGetInt("circrun",String(m_id), m_sludge_duration);
+    m_suspend_duration = MyCfgGetInt("suspend",String(m_id), m_suspend_duration);
 }
 
 HeatChannel channels[num_heat_channels] = {
@@ -337,6 +346,8 @@ static const char * cfg_set_targettemp(const char * name, const String & id, int
             channels[ch].setCooldownMintemp(value);
         } else if (strcmp(name, "circrun") == 0) {
             channels[ch].setSludgeRuntime(value);
+        } else if (strcmp(name, "suspend") == 0) {
+            channels[ch].setSuspendTime(value);
         } else {
             return "Invalid setting";
         }
@@ -391,6 +402,7 @@ void heatchannel_setup() {
     MyCfgRegisterInt("cooltmp",&cfg_set_targettemp);
     MyCfgRegisterInt("circrun",&cfg_set_targettemp);
     MyCfgRegisterInt("chactive",&cfg_set_active);
+    MyCfgRegisterInt("suspend",&cfg_set_targettemp);
 }
 
 void HeatChannel::drawName(bool warm) const {
@@ -527,3 +539,11 @@ void HeatChannel::setActive(bool a, bool updateConfig) {
         MyCfgPutInt("chactive", String(m_id), a);
     }
 };
+
+void HeatChannel::needSuspend() {
+    if (m_suspendUntil > 0) {
+        // already suspended, take no action
+        return;
+    }
+    m_suspendUntil = time(NULL) + m_suspend_duration;
+}

@@ -30,12 +30,17 @@ private:
     bool m_changed;
     time_t m_lastTime;
     Scheduler m_scheduler;
+    time_t m_suspendUntil;
+    int m_suspend_duration;
 
     int m_y; // y display position
 
     void drawActive() const;
     void drawTimer() const;
     void drawCountdown() const;
+    // record that the channel needs to be suspended (if it is not already)
+    void needSuspend();
+
 public:
     HeatChannel(
         int a_id,
@@ -89,6 +94,7 @@ public:
     void setCooldownRuntime(int t) { m_cooldown_duration = t; }
     void setCooldownMintemp(int t) { m_cooldown_mintemp = t; }
     void setSludgeRuntime(int t) { m_sludge_duration = t; }
+    void setSuspendTime(int t) { m_suspend_duration = t; }
 
     // should this channel be running?
     bool wantFire() const;
@@ -109,6 +115,10 @@ public:
     void readConfig();
     time_t lastTime() { return m_lastTime; }
     Scheduler & getScheduler() { return m_scheduler; }
+
+    // returns true if channel is executing a change and pump/boiler
+    // should be suspended
+    bool isChanging(time_t now) { return m_suspendUntil > now;}
 };
 
 // values for use with adjustTimer

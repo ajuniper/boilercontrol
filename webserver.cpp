@@ -164,12 +164,14 @@ static String statuspage_processor(const String& var){
     s += "<tr><td>Boiler</td><td>";
     switch (o_boiler_state) {
         case OUTPUT_OFF: s+="off"; break;
+        case OUTPUT_SUSPEND: s+="suspended"; break;
         case OUTPUT_COOLING: s+="cycling"; break;
         case OUTPUT_HEATING: s+="heating"; break;
     }
     s += "</td></tr><tr><td>Pump</td><td>";
     switch (o_pump_state) {
         case OUTPUT_OFF: s+="off"; break;
+        case OUTPUT_SUSPEND: s+="suspended"; break;
         case OUTPUT_COOLING: s+="cooling"; break;
         case OUTPUT_HEATING: s+="running"; break;
     }
