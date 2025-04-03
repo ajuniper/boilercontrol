@@ -1,13 +1,34 @@
 TEST
+. coredump copy to FFS
+. coredump download to set save as filename
+
+WIP
+. add forecast lookback
 
 FIX
-. force reset 1wire bus if no sensors - how?
+. wifi watchdog to restart if heating idle
+  . what is behaviour of wifi reconnect?  do we get a further disconnected event?
+. syslog buffer if offline
+. move internal cables away from display
+. sort PSU plug
+. false triggers of ready flags
+. fix segvs
+  . heating is on add hw - brownout?
+  . heating is cooldown add hw - temporarily end up with not heating, not hw, pump is on
+  . reduce stack sizes
+  . add esp and arduino versions to /status
+  . switch out syslog library
+. copy-to-next does not unset existing values
+. scheduler web page should cycle off warm off hot
+. scheduler web page should show warmup parameters
 
 . web show more config values
 . should boost during warmup consider flow/return temp?
 . should forecast tracker look at highs as well?
 
 TODO
+. scheduler move day selector to LH column
+. add schedule profiles
 . make web look like lcd
 . scheduler onscreen
 . adjust target temp based on return temp (what are the rules?  try to minimise flow based on ret+15?)
@@ -146,3 +167,5 @@ tempchannel to have multiple temps
 . add status web page showing bssid, cpu%, ram, etc.
 . save core dumps to flash and serve via web
 . correctly pick best SSID at boot
+. force reset 1wire bus if no sensors - how?
+. query DS18B20 individually to make compatible with parasitic mode
