@@ -27,6 +27,8 @@ FIX
 . should forecast tracker look at highs as well?
 
 TODO
+. on/off -> off / manual / automatic
+. scheduler to look at bank holidays https://www.gov.uk/bank-holidays.json
 . scheduler move day selector to LH column
 . add schedule profiles
 . make web look like lcd
