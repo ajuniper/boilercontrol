@@ -10,6 +10,7 @@
 #include "myconfig.h"
 #include <ESPAsyncWebServer.h>
 #include "tempsensors.h"
+#include "finger.h"
 
 #include <mysyslog.h>
 
@@ -22,6 +23,7 @@
 #define HEAT_SETBACK (45*60)
 #define HEAT_SUSPEND 15
 #endif
+
 
 HeatChannel::HeatChannel(
     int a_id,
@@ -46,7 +48,7 @@ HeatChannel::HeatChannel(
     m_target_temp1(a_target_temp1),
     m_target_temp2(a_target_temp2),
     m_enabled(a_enabled),
-    m_active(false),
+    m_active(CHANNEL_OFF),
     m_cooldown_duration(a_cooldown_duration),
     m_cooldown_mintemp(a_cooldown_mintemp),
     m_cooldown_target(0),
@@ -247,7 +249,9 @@ bool HeatChannel::wantFire() const {
     // - channel is active and
     // - timer is active
     //return m_enabled && m_active && ((m_endtime != 0) || (m_cooldown_time != 0));
-    return m_enabled && m_active && ((m_endtime > 0) || (m_endtime == CHANNEL_TIMER_ON));
+    return m_enabled &&
+           (m_active != CHANNEL_OFF) &&
+           ((m_endtime > 0) || (m_endtime == CHANNEL_TIMER_ON));
 }
 // is the channel ready for boiler and pump to run?
 bool HeatChannel::canFire() const {
@@ -269,7 +273,7 @@ bool HeatChannel::wantCooldown() const {
     // - the heat timer is not running
     // - the cooldown timer is running
     // - satisfied is not signalled
-    return m_enabled && m_active &&
+    return m_enabled && (m_active != CHANNEL_OFF) &&
            (m_endtime == 0) && (m_cooldown_time != 0) &&
            (m_satisfied.pinstate() == false);
 }
@@ -287,7 +291,7 @@ void HeatChannel::readConfig()
 {
     m_target_temp1 = MyCfgGetInt("tgttmp",String(m_id), m_target_temp1);
     m_target_temp2 = MyCfgGetInt("tgttmp2",String(m_id), m_target_temp2);
-    m_active = MyCfgGetInt("chactive",String(m_id), m_active);
+    m_active = static_cast<t_channel_active>(MyCfgGetInt("chactive",String(m_id), m_active));
     m_cooldown_duration = MyCfgGetInt("coolrun",String(m_id), m_cooldown_duration);
     m_cooldown_mintemp = MyCfgGetInt("cooltmp",String(m_id), m_cooldown_mintemp);
     m_sludge_duration = MyCfgGetInt("circrun",String(m_id), m_sludge_duration);
@@ -360,7 +364,7 @@ static const char * cfg_set_targettemp(const char * name, const String & id, int
 static const char * cfg_set_active(const char * name, const String & id, int &value) {
     int ch = id.toInt();
     if ((ch >= 0) && (ch <= num_heat_channels)) {
-        channels[ch].setActive(value);
+        channels[ch].setActive(static_cast<t_channel_active>(value));
         return NULL;
     } else {
         return "Invalid channel";
@@ -424,6 +428,7 @@ void HeatChannel::initDisplay() {
 
 void HeatChannel::updateDisplay() {
     if (!m_enabled) { return; }
+    // TODO only update if needed
     drawActive();
     drawTimer();
     drawCountdown();
@@ -450,9 +455,25 @@ void HeatChannel::drawIO(int row, int oncolour, bool state) const
 void HeatChannel::drawActive() const {
     int x=channel_active_x + (channel_icon_size/2);
     int y=m_y + (channel_icon_size/2);
-    tft.fillCircle(x,y,channel_icon_size/2,m_active?TFT_GREEN:TFT_RED);
-    if (!m_active) {
-        tft.fillRect(x-10,y-3,channel_icon_size-4,6,TFT_WHITE);
+    // different icons for active or not
+    tft.fillRect(x,y,channel_icon_size,channel_icon_size,TFT_BLACK);
+    switch (m_active) {
+        case CHANNEL_OFF:
+            // off - no entry sign
+            tft.fillCircle(x,y,channel_icon_size/2,TFT_RED);
+            tft.fillRect(x-10,y-3,channel_icon_size-4,6,TFT_WHITE);
+            ;;
+        case CHANNEL_MANUAL:
+            // manual - white hand/finger
+            tft.drawBitmap(x, y, finger, channel_icon_size, channel_icon_size, TFT_WHITE);
+            ;;
+        case CHANNEL_AUTO:
+            // auto - green clock
+            tft.fillCircle(x,y,channel_icon_size/2,TFT_BLACK);
+            tft.drawCircle(x,y,channel_icon_size/2,TFT_GREEN);
+            tft.drawFastVLine(x,y-(channel_icon_size/2)+4,(channel_icon_size/2)-4,TFT_GREEN);
+            tft.drawFastHLine(x,y,(channel_icon_size/2)-6,TFT_GREEN);
+            ;;
     }
 
     // single pixels to show IO state
@@ -470,11 +491,11 @@ void HeatChannel::drawTimer() const {
     if (m_endtime == CHANNEL_TIMER_ON) {
         tft.fillCircle(x,y,channel_icon_size/2,TFT_GREEN);
     } else {
-        // treat sludge as off
-        tft.fillCircle(x,y,channel_icon_size/2,TFT_BLACK);
-        tft.drawCircle(x,y,channel_icon_size/2,(m_endtime>0)?TFT_GREEN:TFT_DARKGREY);
-        tft.drawFastVLine(x,y-(channel_icon_size/2)+4,(channel_icon_size/2)-4,(m_endtime>0)?TFT_GREEN:TFT_DARKGREY);
-        tft.drawFastHLine(x,y,(channel_icon_size/2)-6,(m_endtime>0)?TFT_GREEN:TFT_DARKGREY);
+        // draw +- button
+        tft.fillRect(x,y,channel_icon_size,channel_icon_size,TFT_BLACK);
+        tft.drawFastVLine(x-5,y-11,11,TFT_GREEN);
+        tft.drawFastHLine(x-11,y-5,11,TFT_GREEN);
+        tft.drawFastHLine(x,y+5,11,TFT_RED);
     }
 }
 
@@ -527,8 +548,15 @@ void HeatChannel::setTargetTempBySetting(int target) {
     m_changed = true;
 }
 
-void HeatChannel::setActive(bool a, bool updateConfig) {
-    if (!a) {
+void HeatChannel::setActive(t_channel_active a, bool updateConfig) {
+    if ((m_active == CHANNEL_AUTO) && (a == CHANNEL_MANUAL) && (m_endtime != 0)) {
+        // tell the scheduler to shut down if the scheduler
+        // has been disabled
+        m_scheduler.turnedOff(m_endtime);
+        m_endtime = time(NULL)-1;
+    }
+    if (a == CHANNEL_OFF) {
+        // hard off, stop things now
         m_endtime = 0;
         m_cooldown_time = 0;
     }

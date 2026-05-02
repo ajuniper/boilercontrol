@@ -118,9 +118,9 @@ static bool handle_release_label(int a_h, time_t a_duration)
 static bool handle_press_active(int a_h, time_t a_duration)
 {
     if (!channels[a_h].getEnabled()) { return false; }
+    // long press disables channel completely
     if (a_duration > 1) {
-        bool a = !channels[a_h].getActive();
-        channels[a_h].setActive(a,true);
+        channels[a_h].setActive(CHANNEL_OFF, true);
         return true;
     }
     return false;
@@ -129,15 +129,22 @@ static bool handle_press_active(int a_h, time_t a_duration)
 static bool handle_release_active(int a_h, time_t a_duration)
 {
     if (!channels[a_h].getEnabled()) { return false; }
+    // quick press toggles between manual and auto
     if (a_duration < 2) {
-        channels[a_h].setActive(!channels[a_h].getActive(),true);
+        t_channel_active a = channels[a_h].getActive();
+        if (a == CHANNEL_AUTO) {
+            a = CHANNEL_MANUAL;
+        } else {
+            a = CHANNEL_AUTO;
+        }
+        channels[a_h].setActive(a,true);
     }
     return false;
 }
 
 static bool handle_press_timer(int a_h, time_t a_duration)
 {
-    if (!channels[a_h].getActive()) { return false; }
+    if (channels[a_h].getActive() != CHANNEL_OFF) { return false; }
     // no op for short presses, action long press here
     if (a_duration > 2) {
         time_t t = channels[a_h].getTimer();
@@ -154,7 +161,7 @@ static bool handle_press_timer(int a_h, time_t a_duration)
 
 static bool handle_release_timer(int a_h, time_t a_duration)
 {
-    if (!channels[a_h].getActive()) { return false; }
+    if (channels[a_h].getActive() != CHANNEL_OFF) { return false; }
     // handle short presses on release
     if (a_duration < 3) {
         if (channels[a_h].getTimer() == CHANNEL_TIMER_ON) {

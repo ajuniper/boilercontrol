@@ -6,6 +6,8 @@
 #include "scheduler.h"
 #include "scheduledoutput.h"
 
+typedef enum t_channel_active { CHANNEL_OFF = 0, CHANNEL_MANUAL, CHANNEL_AUTO };
+
 class HeatChannel {
 private:
     int m_id;
@@ -18,7 +20,7 @@ private:
     int m_target_temp1;
     int m_target_temp2;
     bool m_enabled;
-    bool m_active;
+    t_channel_active m_active;
     int m_cooldown_duration;
     int m_endtime;
     int m_cooldown_time;
@@ -64,8 +66,11 @@ public:
     int getId() const { return m_id; }
     const char * getName() { return m_name; }
     bool getEnabled() { return m_enabled; }
-    bool getActive() const { return m_enabled && m_active; };
-    void setActive(bool a, bool updateConfig=false);
+    t_channel_active getActive() const {
+        if (!m_enabled) return CHANNEL_OFF;
+        return m_active;
+    }
+    void setActive(t_channel_active a, bool updateConfig=false);
     time_t getTimer() { return m_endtime; }
     unsigned long getCooldown() { return m_cooldown_time; }
     bool getOutput() { return m_enabled && m_zv_output; }

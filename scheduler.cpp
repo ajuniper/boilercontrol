@@ -744,7 +744,8 @@ static void scheduler_run(void *)
             if ((u != 0) && (u > t)) { t = u; }
 
             // skip if channel is disabled
-            if (!ch.getActive()) { continue; }
+            // any running scheduled cycle is stopped in heat channel
+            if (ch.getActive() != CHANNEL_AUTO) { continue; }
 
             // process this channel
             ch.getScheduler().checkSchedule(now.tm_wday,now.tm_hour,now.tm_min);
@@ -810,7 +811,7 @@ void Scheduler::set(int d, int h, int m, char state)
         return;
     }
     mLastChange = time(NULL);
-    xTaskNotifyGive( schedtask_handle );
+    wakeUp();
 }
 const char * Scheduler::set(int d, const String & hm, char state)
 {

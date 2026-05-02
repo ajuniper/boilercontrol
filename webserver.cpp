@@ -65,13 +65,18 @@ static String statuspage_processor(const String& var){
     s+="</tr><tr><th align=\"left\">Timer</th>";
     for(i=0; i<num_heat_channels; ++i) {
         s +="<td align=\"center\">";
-        if (channels[i].getActive()) {
-            // timer
+        t_channel_active a = channels[i].getActive();
+        if (a != CHANNEL_OFF) { // timer
             t = channels[i].getTimer();
             switch (t) {
                 case CHANNEL_TIMER_OFF:
                 case CHANNEL_TIMER_SLUDGE:
                     s += "Off";
+                    if (a == CHANNEL_MANUAL) {
+                        s += " (manual)";
+                    } else {
+                        s += " (auto)";
+                    }
                     // cooldown
                     t = channels[i].getCooldown();
                     switch (t) {
@@ -89,6 +94,11 @@ static String statuspage_processor(const String& var){
                     break;
                 case CHANNEL_TIMER_ON:
                     s += "On";
+                    if (a == CHANNEL_MANUAL) {
+                        s += " (manual)";
+                    } else {
+                        s += " (auto)";
+                    }
                     break;
                 default:
                     getInterval(s,t-now);
@@ -102,7 +112,7 @@ static String statuspage_processor(const String& var){
     s+="</tr><tr><th align=\"left\">Target Temp</th>";
     for(i=0; i<num_heat_channels; ++i) {
         s +="<td align=\"center\">";
-        if (channels[i].getActive()) {
+        if (channels[i].getActive() != CHANNEL_OFF) {
             s+=String(channels[i].targetTemp());
             s+="C";
         }
@@ -112,7 +122,7 @@ static String statuspage_processor(const String& var){
     s+="</tr><tr><th align=\"left\">Base Warmup</th>";
     for(i=0; i<num_heat_channels; ++i) {
         s +="<td align=\"center\">";
-        if (channels[i].getActive()) {
+        if (channels[i].getActive() != CHANNEL_OFF) {
             getInterval(s,channels[i].getScheduler().getBaseWarmup());
         }
         s +="</td>";
@@ -122,7 +132,8 @@ static String statuspage_processor(const String& var){
     for(i=0; i<num_heat_channels; ++i) {
         s +="<td align=\"center\">";
         ch = '0'+i;
-        if (channels[i].getActive()) {
+        t_channel_active a = channels[i].getActive();
+        if (a != CHANNEL_OFF) {
             if (channels[i].targetTemp2() > -1) {
                 s+="Warm: ";
                 s+="<a href=\"heat?ch="; s+=ch ; s+="&q=900&t=1\">+15m</a> ";
@@ -138,11 +149,15 @@ static String statuspage_processor(const String& var){
             //s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=2\">+3h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_ON ; s+="&t=2\">On</a><br/>";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_OFF ; s+="\">Off</a> ";
+        }
+        if (a != CHANNEL_MANUAL) {
+            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=1\">Manual</a> ";
+        }
+        if (a != CHANNEL_AUTO) {
+            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=2\">Automatic</a> ";
+        }
+        if (a != CHANNEL_OFF) {
             s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=0\">Disable</a> ";
-        } else {
-            s+="<a href=\"config?name=chactive&id=";
-            s+=ch;
-            s+="&value=1\">Activate</a>";
         }
         s +="</td>";
     }
