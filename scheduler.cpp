@@ -11,6 +11,7 @@
 #include "myconfig.h"
 #include "tempsensors.h"
 #include "outputs.h"
+#include <bhfetcher.h>
 
 #ifdef SHORT_TIMES
 // max time before running the pump for a short while
@@ -727,12 +728,25 @@ static void scheduler_run(void *)
     int i,j;
     int d,h,m;
     struct tm now;
+    // trigger BH lookup at boot
+    int last_weekday = -1;
+
     delay(5000);
     while(1) {
         // for each channel
         t = 0;
         v = u = time(NULL);
         localtime_r(&u,&now);
+
+        // check if today is a BH
+        if (last_weekday != now.tm_wday) {
+            if (BHupdateToday()) {
+                // got a good response
+                last_weekday = now.tm_wday;
+            } else {
+                // failed to get a response, try again next time
+            }
+        }
 
         for(i=0; i<num_heat_channels; ++i) {
             HeatChannel &ch(channels[i]);
@@ -748,7 +762,8 @@ static void scheduler_run(void *)
             if (ch.getActive() != CHANNEL_AUTO) { continue; }
 
             // process this channel
-            ch.getScheduler().checkSchedule(now.tm_wday,now.tm_hour,now.tm_min);
+            // override day to Saturday if a holiday day
+            ch.getScheduler().checkSchedule(BHtoday()?6:now.tm_wday,now.tm_hour,now.tm_min);
         }
 
         // if pending save older than 10s then save changes
