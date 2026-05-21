@@ -1,6 +1,13 @@
 TEST
 . coredump copy to FFS
 . coredump download to set save as filename
+. on/off -> off / manual / automatic
+. scheduler to look at bank holidays
+  https://www.gov.uk/bank-holidays.json
+  https://date.nager.at/scalar/#api-version-3/tag/publicholiday/GET/api/v3/IsTodayPublicHoliday/{countryCode}
+  https://date.nager.at/Api/v3/IsTodayPublicHoliday/IN?countyCode=KA
+  https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=51.75413&longitude=-1.124867&language=en
+  https://ip-api.com/docs  http://ip-api.com/csv/?fields=countryCode,region
 
 WIP
 . add forecast lookback
@@ -27,8 +34,6 @@ FIX
 . should forecast tracker look at highs as well?
 
 TODO
-. on/off -> off / manual / automatic
-. scheduler to look at bank holidays https://www.gov.uk/bank-holidays.json
 . scheduler move day selector to LH column
 . add schedule profiles
 . make web look like lcd
