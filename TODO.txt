@@ -13,12 +13,13 @@ WIP
 . add forecast lookback
 
 FIX
+. ignore input signals if corresponding output inactive
+  . false triggers of ready flags
+. work out how to ignore powerline noise
 . wifi watchdog to restart if heating idle
   . what is behaviour of wifi reconnect?  do we get a further disconnected event?
 . syslog buffer if offline
-. move internal cables away from display
 . sort PSU plug
-. false triggers of ready flags
 . fix segvs
   . heating is on add hw - brownout?
   . heating is cooldown add hw - temporarily end up with not heating, not hw, pump is on
@@ -34,8 +35,10 @@ FIX
 . should forecast tracker look at highs as well?
 
 TODO
+. button to reboot
 . scheduler move day selector to LH column
 . add schedule profiles
+. add "if forecast temp is above X do not run"
 . make web look like lcd
 . scheduler onscreen
 . adjust target temp based on return temp (what are the rules?  try to minimise flow based on ret+15?)
@@ -176,3 +179,6 @@ tempchannel to have multiple temps
 . correctly pick best SSID at boot
 . force reset 1wire bus if no sensors - how?
 . query DS18B20 individually to make compatible with parasitic mode
+. move internal cables away from display
+. coredump copy to FFS
+. coredump download to set save as filename
