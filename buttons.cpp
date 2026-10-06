@@ -144,7 +144,7 @@ static bool handle_release_active(int a_h, time_t a_duration)
 
 static bool handle_press_timer(int a_h, time_t a_duration)
 {
-    if (channels[a_h].getActive() != CHANNEL_OFF) { return false; }
+    if (channels[a_h].getActive() == CHANNEL_OFF) { return false; }
     // no op for short presses, action long press here
     if (a_duration > 2) {
         time_t t = channels[a_h].getTimer();
@@ -161,7 +161,7 @@ static bool handle_press_timer(int a_h, time_t a_duration)
 
 static bool handle_release_timer(int a_h, time_t a_duration)
 {
-    if (channels[a_h].getActive() != CHANNEL_OFF) { return false; }
+    if (channels[a_h].getActive() == CHANNEL_OFF) { return false; }
     // handle short presses on release
     if (a_duration < 3) {
         if (channels[a_h].getTimer() == CHANNEL_TIMER_ON) {
