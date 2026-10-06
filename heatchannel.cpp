@@ -452,28 +452,32 @@ void HeatChannel::drawIO(int row, int oncolour, bool state) const
 #endif
 }
 
+// TODO only redraw if necessary
 void HeatChannel::drawActive() const {
     int x=channel_active_x + (channel_icon_size/2);
     int y=m_y + (channel_icon_size/2);
     // different icons for active or not
-    tft.fillRect(x,y,channel_icon_size,channel_icon_size,TFT_BLACK);
+    tft.fillRect(channel_active_x-1,m_y-1,channel_icon_size+2,channel_icon_size+2,TFT_BLACK);
     switch (m_active) {
         case CHANNEL_OFF:
             // off - no entry sign
             tft.fillCircle(x,y,channel_icon_size/2,TFT_RED);
-            tft.fillRect(x-10,y-3,channel_icon_size-4,6,TFT_WHITE);
-            ;;
+            tft.fillRect(x-9,y-2,channel_icon_size-5,6,TFT_WHITE);
+            break;
+            ;
         case CHANNEL_MANUAL:
             // manual - white hand/finger
-            tft.drawBitmap(x, y, finger, channel_icon_size, channel_icon_size, TFT_WHITE);
-            ;;
+            tft.drawBitmap(channel_active_x, m_y, finger, channel_icon_size, channel_icon_size, TFT_WHITE);
+            break;
+            ;
         case CHANNEL_AUTO:
             // auto - green clock
             tft.fillCircle(x,y,channel_icon_size/2,TFT_BLACK);
             tft.drawCircle(x,y,channel_icon_size/2,TFT_GREEN);
             tft.drawFastVLine(x,y-(channel_icon_size/2)+4,(channel_icon_size/2)-4,TFT_GREEN);
             tft.drawFastHLine(x,y,(channel_icon_size/2)-6,TFT_GREEN);
-            ;;
+            break;
+            ;
     }
 
     // single pixels to show IO state
@@ -489,13 +493,13 @@ void HeatChannel::drawTimer() const {
     int x=channel_timer_x + (channel_icon_size/2);
     int y=m_y + (channel_icon_size/2);
     if (m_endtime == CHANNEL_TIMER_ON) {
-        tft.fillCircle(x,y,channel_icon_size/2,TFT_GREEN);
+        tft.fillCircle(x,y,(channel_icon_size/2)-1,TFT_GREEN);
     } else {
         // draw +- button
-        tft.fillRect(x,y,channel_icon_size,channel_icon_size,TFT_BLACK);
-        tft.drawFastVLine(x-5,y-11,11,TFT_GREEN);
-        tft.drawFastHLine(x-11,y-5,11,TFT_GREEN);
-        tft.drawFastHLine(x,y+5,11,TFT_RED);
+        tft.fillRect(channel_timer_x-1,m_y-1,channel_icon_size+2,channel_icon_size+2,TFT_BLACK);
+        tft.drawFastVLine(x-5,y-10,11,TFT_GREEN);
+        tft.drawFastHLine(x-10,y-5,11,TFT_GREEN);
+        tft.drawFastHLine(x,y+4,10,TFT_RED);
     }
 }
 
