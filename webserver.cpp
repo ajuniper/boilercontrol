@@ -72,11 +72,6 @@ static String statuspage_processor(const String& var){
                 case CHANNEL_TIMER_OFF:
                 case CHANNEL_TIMER_SLUDGE:
                     s += "Off";
-                    if (a == CHANNEL_MANUAL) {
-                        s += " (manual)";
-                    } else {
-                        s += " (auto)";
-                    }
                     // cooldown
                     t = channels[i].getCooldown();
                     switch (t) {
@@ -94,11 +89,6 @@ static String statuspage_processor(const String& var){
                     break;
                 case CHANNEL_TIMER_ON:
                     s += "On";
-                    if (a == CHANNEL_MANUAL) {
-                        s += " (manual)";
-                    } else {
-                        s += " (auto)";
-                    }
                     break;
                 default:
                     getInterval(s,t-now);
@@ -109,21 +99,29 @@ static String statuspage_processor(const String& var){
         s +="</td>";
     }
 
-    s+="</tr><tr><th align=\"left\">Target Temp</th>";
+    s+="</tr><tr><th align=\"left\">Mode</th>";
     for(i=0; i<num_heat_channels; ++i) {
         s +="<td align=\"center\">";
-        if (channels[i].getActive() != CHANNEL_OFF) {
-            s+=String(channels[i].targetTemp());
-            s+="C";
+        t_channel_active a = channels[i].getActive();
+        switch (a) {
+            case CHANNEL_OFF:
+                s += "Disabled<br/>";
+                break;
+            case CHANNEL_MANUAL:
+                s += "Manual<br/>";
+                break;
+            case CHANNEL_AUTO:
+                s += "Automatic<br/>";
+                break;
         }
-        s +="</td>";
-    }
-
-    s+="</tr><tr><th align=\"left\">Base Warmup</th>";
-    for(i=0; i<num_heat_channels; ++i) {
-        s +="<td align=\"center\">";
-        if (channels[i].getActive() != CHANNEL_OFF) {
-            getInterval(s,channels[i].getScheduler().getBaseWarmup());
+        if (a != CHANNEL_MANUAL) {
+            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=1\">Manual</a> ";
+        }
+        if (a != CHANNEL_AUTO) {
+            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=2\">Automatic</a> ";
+        }
+        if (a != CHANNEL_OFF) {
+            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=0\">Disable</a> ";
         }
         s +="</td>";
     }
@@ -147,17 +145,29 @@ static String statuspage_processor(const String& var){
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=3600&t=2\">+1h</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q=7200&t=2\">+2h</a> ";
             //s+="<a href=\"heat?ch="; s+=ch ; s+="&q=10800&t=2\">+3h</a> ";
-            s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_ON ; s+="&t=2\">On</a><br/>";
+            s+="<br/>";
+            s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_ON ; s+="&t=2\">On</a> ";
             s+="<a href=\"heat?ch="; s+=ch ; s+="&q="; s+=CHANNEL_TIMER_OFF ; s+="\">Off</a> ";
+            s+="<br/>";
         }
-        if (a != CHANNEL_MANUAL) {
-            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=1\">Manual</a> ";
+        s +="</td>";
+    }
+
+    s+="</tr><tr><th align=\"left\">Target Temp</th>";
+    for(i=0; i<num_heat_channels; ++i) {
+        s +="<td align=\"center\">";
+        if (channels[i].getActive() != CHANNEL_OFF) {
+            s+=String(channels[i].targetTemp());
+            s+="C";
         }
-        if (a != CHANNEL_AUTO) {
-            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=2\">Automatic</a> ";
-        }
-        if (a != CHANNEL_OFF) {
-            s+="<a href=\"config?name=chactive&id="; s+=ch ; s+="&value=0\">Disable</a> ";
+        s +="</td>";
+    }
+
+    s+="</tr><tr><th align=\"left\">Base Warmup</th>";
+    for(i=0; i<num_heat_channels; ++i) {
+        s +="<td align=\"center\">";
+        if (channels[i].getActive() != CHANNEL_OFF) {
+            getInterval(s,channels[i].getScheduler().getBaseWarmup());
         }
         s +="</td>";
     }
