@@ -466,6 +466,26 @@ bool Scheduler::getBoost() const {
     return (temp <= mRunHotterTemp);
 }
 
+// sludge stopper
+void Scheduler::checkSludge(time_t now, time_t currTimer)
+{
+    // if channel is off and >24h since last ran (or up for long enough)
+    // check this here before resetting mLastSchedule otherwise the sludge
+    // buster triggers before the main task stops the burner
+    if ((mSludgeInterval > 0) &&
+        (currTimer <= now) &&
+        (mLastSchedule == 0) &&
+        ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
+        ((now - mChannel.lastTime()) > mSludgeInterval)) {
+        // we can only run the sludge buster if all channels are inactive
+        if ((o_boiler_on == false) && (o_pump_on == false)) {
+            syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
+            mChannel.adjustTimer(CHANNEL_TIMER_SLUDGE);
+        }
+    }
+
+}
+
 void Scheduler::checkSchedule(int d, int h, int m)
 {
     // calculate current warmup time
@@ -653,21 +673,8 @@ void Scheduler::checkSchedule(int d, int h, int m)
             syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler stops %s, schedule shortened to off",mChannel.getName());
         }
 
-        // sludge stopper
-        // if channel is off and >24h since last ran (or up for long enough)
-        // check this here before resetting mLastSchedule otherwise the sludge
-        // buster triggers before the main task stops the burner
-        if ((mSludgeInterval > 0) &&
-            (currTimer <= now) &&
-            (mLastSchedule == 0) &&
-            ((mChannel.lastTime() != 0) || (millis() > SLUDGE_UPTIME)) &&
-            ((now - mChannel.lastTime()) > mSludgeInterval)) {
-            // we can only run the sludge buster if all channels are inactive
-            if ((o_boiler_on == false) && (o_pump_on == false)) {
-                syslogf(LOG_DAEMON|LOG_WARNING, "Scheduler run %s sludge buster",mChannel.getName());
-                mChannel.adjustTimer(CHANNEL_TIMER_SLUDGE);
-            }
-        }
+        // see if we can run the sludge buster
+        checkSludge(now, currTimer);
 
         // channel is now off
         mLastSchedule = 0;
@@ -759,11 +766,20 @@ static void scheduler_run(void *)
 
             // skip if channel is disabled
             // any running scheduled cycle is stopped in heat channel
-            if (ch.getActive() != CHANNEL_AUTO) { continue; }
-
-            // process this channel
-            // override day to Saturday if a holiday day
-            ch.getScheduler().checkSchedule(BHtoday()?6:now.tm_wday,now.tm_hour,now.tm_min);
+            switch (ch.getActive()) {
+                case CHANNEL_AUTO:
+                    // process this channel
+                    // override day to Saturday if a holiday day
+                    ch.getScheduler().checkSchedule(BHtoday()?6:now.tm_wday,now.tm_hour,now.tm_min);
+                    break;
+                case CHANNEL_MANUAL:
+                    // see if we can run the sludge buster
+                    ch.getScheduler().checkSludge(v, 0);
+                    break;
+                case CHANNEL_OFF:
+                    // no action required
+                    break;
+            }
         }
 
         // if pending save older than 10s then save changes

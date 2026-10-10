@@ -47,6 +47,7 @@ class Scheduler {
         }
 
         void checkSchedule(int d, int h, int m);
+        void checkSludge(time_t now, time_t currTimer);
         time_t lastChange(); // time of last change, 0 if none pending
         void saveChanges();
         void readConfig();
